@@ -11,12 +11,53 @@ namespace UltScan
     {
         private Forms.NotifyIcon? _notifyIcon;
         private SettingsWindow? _settingsWindow;
+        private Window? _messageWindow;
+        private HotKeyManager? _hotKey;
 
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+
             CreateTrayIcon();
-            // Никаких окон не создаём и не показываем
+
+            CreateMessageWindowForHotKeys();
+            RegisterGlobalHotKey();
+        }
+
+        private void CreateMessageWindowForHotKeys()
+        {
+            _messageWindow = new Window
+            {
+                Width = 1,
+                Height = 1,
+                Left = -10000,
+                Top = -10000,
+                ShowInTaskbar = false,
+                WindowStyle = WindowStyle.None,
+                ResizeMode = ResizeMode.NoResize,
+                AllowsTransparency = true,
+                Opacity = 0
+            };
+
+            // Важно: нужно создать handle => Show/Hide
+            _messageWindow.Show();
+            _messageWindow.Hide();
+        }
+
+        private void RegisterGlobalHotKey()
+        {
+            const uint VK_Z = 0x5A; // virtual-key code для 'Z'
+
+            _hotKey = new HotKeyManager(
+                _messageWindow!,
+                ModifierKeys.Shift | ModifierKeys.Win | ModifierKeys.NoRepeat,
+                VK_Z);
+
+            _hotKey.HotKeyPressed += (_, __) =>
+            {
+                // заглушка реакции: откроем настройки
+                ShowSettingsWindow();
+            };
         }
 
         private void CreateTrayIcon()
@@ -100,6 +141,9 @@ namespace UltScan
                 _notifyIcon.Dispose();
                 _notifyIcon = null;
             }
+
+            _hotKey?.Dispose();
+            _hotKey = null;
 
             base.OnExit(e);
         }
