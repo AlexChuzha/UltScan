@@ -13,6 +13,7 @@ namespace UltScan
         private SettingsWindow? _settingsWindow;
         private Window? _messageWindow;
         private HotKeyManager? _hotKey;
+        private MainWindow? _mainWindow;
 
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -55,9 +56,19 @@ namespace UltScan
 
             _hotKey.HotKeyPressed += (_, __) =>
             {
-                // заглушка реакции: откроем настройки
-                ShowSettingsWindow();
+                Dispatcher.Invoke(ShowCaptureWindow);
             };
+        }
+
+        private void ShowCaptureWindow()
+        {
+            if (_mainWindow == null)
+            {
+                _mainWindow = new MainWindow();
+                _mainWindow.Closed += (_, __) => _mainWindow = null;
+            }
+
+            _mainWindow.StartCaptureMode();
         }
 
         private void CreateTrayIcon()
