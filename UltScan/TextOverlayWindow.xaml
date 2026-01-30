@@ -23,6 +23,8 @@
                  TextWrapping="Wrap"
                  AcceptsReturn="True"
                  VerticalScrollBarVisibility="Auto"
-                 Focusable="True"/>
+                 IsReadOnly="True"
+                 IsHitTestVisible="False"
+                 Focusable="False"/>
     </Border>
 </Window>
