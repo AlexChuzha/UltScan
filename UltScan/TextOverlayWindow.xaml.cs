@@ -49,5 +49,4 @@ public partial class TextOverlayWindow : Window
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
-
 }

@@ -186,6 +186,8 @@ namespace UltScan
             _hotKey?.Dispose();
             _hotKey = null;
 
+            CloseOverlayWindow();
+
             base.OnExit(e);
         }
     }
