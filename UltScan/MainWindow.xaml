@@ -1,0 +1,10 @@
+﻿<Window x:Class="UltScan.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="YourApp" Height="300" Width="500">
+    <Grid>
+        <TextBlock Text="Окно (пока как заглушка для настроек)"
+                   VerticalAlignment="Center"
+                   HorizontalAlignment="Center"/>
+    </Grid>
+</Window>
