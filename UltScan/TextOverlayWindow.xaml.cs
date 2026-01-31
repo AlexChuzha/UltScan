@@ -36,15 +36,6 @@ public partial class TextOverlayWindow : Window
         {
             var text = await ScreenTextRecognizer.RecognizeTextAsync(_captureRect, this);
             Editor.Text = text;
-        Left = rect.Left;
-        Top = rect.Top;
-        Width = rect.Width;
-        Height = rect.Height;
-
-        SourceInitialized += (_, __) => EnableClickThrough();
-
-        Loaded += (_, __) =>
-        {
             Editor.CaretIndex = Editor.Text.Length;
         }
         finally
