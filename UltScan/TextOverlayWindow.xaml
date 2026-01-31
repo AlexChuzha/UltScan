@@ -9,9 +9,9 @@
         Background="Transparent">
 
     <!-- Полупрозрачная "карточка", чтобы текст читался -->
-    <Border Background="#E6FFFFFF"
+    <Border Background="#99444444"
             CornerRadius="10"
-            BorderBrush="#33000000"
+            BorderBrush="#66000000"
             BorderThickness="1"
             Padding="10">
 
