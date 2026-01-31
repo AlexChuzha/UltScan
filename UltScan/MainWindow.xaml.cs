@@ -17,6 +17,8 @@ public partial class MainWindow : Window
     private WpfPoint _start;
     private WpfPoint _end;
 
+    public event EventHandler<WpfRect>? SelectionCompleted;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -98,8 +100,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var overlay = new TextOverlayWindow(rect);
-        overlay.Show();
+        SelectionCompleted?.Invoke(this, rect);
 
         SelectionRect.Visibility = Visibility.Collapsed;
         Hide();
