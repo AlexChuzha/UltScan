@@ -14,6 +14,7 @@ namespace UltScan
         private Window? _messageWindow;
         private HotKeyManager? _hotKey;
         private MainWindow? _mainWindow;
+        private TextOverlayWindow? _overlayWindow;
 
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -56,7 +57,11 @@ namespace UltScan
 
             _hotKey.HotKeyPressed += (_, __) =>
             {
-                Dispatcher.Invoke(ShowCaptureWindow);
+                Dispatcher.Invoke(() =>
+                {
+                    CloseOverlayWindow();
+                    ShowCaptureWindow();
+                });
             };
         }
 
@@ -66,9 +71,30 @@ namespace UltScan
             {
                 _mainWindow = new MainWindow();
                 _mainWindow.Closed += (_, __) => _mainWindow = null;
+                _mainWindow.SelectionCompleted += (_, rect) => ShowOverlayWindow(rect);
             }
 
             _mainWindow.StartCaptureMode();
+        }
+
+        private void ShowOverlayWindow(Rect rect)
+        {
+            CloseOverlayWindow();
+
+            _overlayWindow = new TextOverlayWindow(rect);
+            _overlayWindow.Closed += (_, __) => _overlayWindow = null;
+            _overlayWindow.Show();
+        }
+
+        private void CloseOverlayWindow()
+        {
+            if (_overlayWindow == null)
+            {
+                return;
+            }
+
+            _overlayWindow.Close();
+            _overlayWindow = null;
         }
 
         private void CreateTrayIcon()
@@ -133,6 +159,8 @@ namespace UltScan
                     _settingsWindow = null;
                 }
 
+                CloseOverlayWindow();
+
                 if (_notifyIcon != null)
                 {
                     _notifyIcon.Visible = false;
@@ -155,6 +183,8 @@ namespace UltScan
 
             _hotKey?.Dispose();
             _hotKey = null;
+
+            CloseOverlayWindow();
 
             base.OnExit(e);
         }
