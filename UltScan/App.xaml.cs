@@ -181,6 +181,8 @@ namespace UltScan
                 _notifyIcon = null;
             }
 
+            CloseOverlayWindow();
+
             _hotKey?.Dispose();
             _hotKey = null;
 
