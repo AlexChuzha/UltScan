@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Interop;
 
@@ -7,6 +8,8 @@ namespace UltScan;
 
 public partial class TextOverlayWindow : Window
 {
+    private readonly Rect _captureRect;
+
     public TextOverlayWindow(Rect rect)
     {
         InitializeComponent();
@@ -14,6 +17,25 @@ public partial class TextOverlayWindow : Window
         ShowActivated = false;
         Focusable = false;
 
+        _captureRect = rect;
+
+        Left = _captureRect.Left;
+        Top = _captureRect.Top;
+        Width = _captureRect.Width;
+        Height = _captureRect.Height;
+
+        SourceInitialized += (_, __) => EnableClickThrough();
+
+        Loaded += async (_, __) => await StartRecognitionAsync();
+    }
+
+    private async Task StartRecognitionAsync()
+    {
+        Opacity = 0;
+        try
+        {
+            var text = await ScreenTextRecognizer.RecognizeTextAsync(_captureRect, this);
+            Editor.Text = text;
         Left = rect.Left;
         Top = rect.Top;
         Width = rect.Width;
@@ -24,7 +46,11 @@ public partial class TextOverlayWindow : Window
         Loaded += (_, __) =>
         {
             Editor.CaretIndex = Editor.Text.Length;
-        };
+        }
+        finally
+        {
+            Opacity = 1;
+        }
     }
 
     private void EnableClickThrough()

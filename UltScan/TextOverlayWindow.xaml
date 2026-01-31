@@ -17,6 +17,7 @@
 
         <TextBox x:Name="Editor"
                  FontSize="16"
+                 FontWeight="Bold"
                  Foreground="Black"
                  Background="Transparent"
                  BorderThickness="0"
