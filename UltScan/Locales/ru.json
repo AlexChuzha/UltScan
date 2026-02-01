@@ -35,6 +35,8 @@
     "Settings.OverlayOrientation": "Ориентация вывода",
     "Settings.OverlayRight": "Вывод справа",
     "Settings.OverlayBottom": "Вывод снизу",
+    "Settings.OverlayLeft": "Вывод слева",
+    "Settings.OverlayTop": "Вывод сверху",
     "Settings.ExperimentalWarning": "Экспериментальный режим может работать нестабильно и содержать неожиданные функции. Для стабильной работы отключите его.",
     "Settings.Save": "Сохранить",
     "Settings.Cancel": "Отмена",

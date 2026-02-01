@@ -20,6 +20,7 @@ public partial class TextOverlayWindow : Window
     private string _lastCandidate = string.Empty;
     private string _lastStable = string.Empty;
     private DateTime _lastChangeUtc = DateTime.UtcNow;
+    private List<OcrLineLayout> _lastLayoutLines = new();
 
     public TextOverlayWindow(Rect rect)
     {
@@ -54,18 +55,52 @@ public partial class TextOverlayWindow : Window
         Width = _captureRect.Width;
         Height = _captureRect.Height;
 
-        if (orientation == OverlayOrientation.Bottom)
+        var screen = Forms.Screen.FromRectangle(new Rectangle(
+            (int)_captureRect.X,
+            (int)_captureRect.Y,
+            Math.Max(1, (int)_captureRect.Width),
+            Math.Max(1, (int)_captureRect.Height))).WorkingArea;
+
+        var desired = GetPositionForOrientation(orientation);
+        if (!Fits(desired, screen))
         {
-            Left = _captureRect.Left;
-            Top = _captureRect.Bottom;
-        }
-        else
-        {
-            Left = _captureRect.Right;
-            Top = _captureRect.Top;
+            var fallback = GetFallbackOrientation(orientation);
+            desired = GetPositionForOrientation(fallback);
         }
 
+        Left = desired.Left;
+        Top = desired.Top;
         ClampToScreen();
+    }
+
+    private Rect GetPositionForOrientation(OverlayOrientation orientation)
+    {
+        return orientation switch
+        {
+            OverlayOrientation.Bottom => new Rect(_captureRect.Left, _captureRect.Bottom, Width, Height),
+            OverlayOrientation.Top => new Rect(_captureRect.Left, _captureRect.Top - Height, Width, Height),
+            OverlayOrientation.Left => new Rect(_captureRect.Left - Width, _captureRect.Top, Width, Height),
+            _ => new Rect(_captureRect.Right, _captureRect.Top, Width, Height)
+        };
+    }
+
+    private static OverlayOrientation GetFallbackOrientation(OverlayOrientation orientation)
+    {
+        return orientation switch
+        {
+            OverlayOrientation.Bottom => OverlayOrientation.Top,
+            OverlayOrientation.Top => OverlayOrientation.Bottom,
+            OverlayOrientation.Left => OverlayOrientation.Right,
+            _ => OverlayOrientation.Left
+        };
+    }
+
+    private static bool Fits(Rect rect, Rectangle bounds)
+    {
+        return rect.Left >= bounds.Left &&
+               rect.Top >= bounds.Top &&
+               rect.Right <= bounds.Right &&
+               rect.Bottom <= bounds.Bottom;
     }
 
     private void ClampToScreen()
@@ -130,6 +165,7 @@ public partial class TextOverlayWindow : Window
         _lastCandidate = NormalizeForCompare(text);
         _lastStable = string.Empty;
         _lastChangeUtc = DateTime.UtcNow;
+        _lastLayoutLines = layout.Lines.ToList();
     }
 
     private void StartTranslationLoop(App app)
@@ -144,14 +180,14 @@ public partial class TextOverlayWindow : Window
             {
                 var layout = await ScreenTextRecognizer.RecognizeLayoutAsync(_captureRect, this);
                 var text = layout.Text;
-                await HandleCandidateAsync(app, text);
+                await HandleCandidateAsync(app, text, layout.Lines);
 
                 await Task.Delay(Math.Max(200, app.Settings.Translation.PollIntervalMs), token);
             }
         }, token);
     }
 
-    private async Task HandleCandidateAsync(App app, string text)
+    private async Task HandleCandidateAsync(App app, string text, IReadOnlyList<OcrLineLayout> lines)
     {
         var normalized = NormalizeForCompare(text);
         if (string.IsNullOrWhiteSpace(normalized))
@@ -187,9 +223,13 @@ public partial class TextOverlayWindow : Window
         }
 
         _lastStable = normalized;
+        _lastLayoutLines = lines.ToList();
+
+        var split = app.Settings.ExperimentalMode ? TrySplitNameAndSpeech(_lastLayoutLines) : null;
+        var textToTranslate = split?.speech ?? text;
 
         var translated = await TranslationService.TranslateAsync(
-            text,
+            textToTranslate,
             app.Settings.Translation.SourceLanguage,
             app.Settings.Translation.TargetLanguage,
             app.Settings.Translation.ProjectId,
@@ -210,7 +250,14 @@ public partial class TextOverlayWindow : Window
                     ?? app.Settings.Translation.TargetLanguage;
                 var stamp = DateTime.Now.ToString("HH:mm:ss");
                 var header = string.Format(app.Localization["Overlay.TranslatedHeader"], langName, stamp);
-                RenderExperimentalTranslation(text, header, translated);
+                if (split != null)
+                {
+                    RenderExperimentalTranslationFromLayout(split.Value.name, split.Value.speech, header, translated);
+                }
+                else
+                {
+                    RenderExperimentalTranslation(text, header, translated);
+                }
             }
             else
             {
@@ -319,6 +366,59 @@ public partial class TextOverlayWindow : Window
         OriginalTextBlock.Text = original;
         TranslatedTextBlock.Text = header + Environment.NewLine + translated;
         AdjustHeightToContent(TranslationPanel);
+    }
+
+    private void RenderExperimentalTranslationFromLayout(string name, string speech, string header, string translatedSpeech)
+    {
+        LayoutCanvas.Visibility = Visibility.Collapsed;
+        LayoutCanvas.Children.Clear();
+
+        Editor.Visibility = Visibility.Collapsed;
+        Editor.Text = string.Empty;
+
+        TranslationPanel.Visibility = Visibility.Visible;
+        OriginalTextBlock.Text = string.IsNullOrWhiteSpace(name)
+            ? speech
+            : name + Environment.NewLine + speech;
+        TranslatedTextBlock.Text = string.IsNullOrWhiteSpace(name)
+            ? header + Environment.NewLine + translatedSpeech
+            : header + Environment.NewLine + name + Environment.NewLine + translatedSpeech;
+        AdjustHeightToContent(TranslationPanel);
+    }
+
+    private (string name, string speech)? TrySplitNameAndSpeech(IReadOnlyList<OcrLineLayout> lines)
+    {
+        if (lines == null || lines.Count < 2)
+        {
+            return null;
+        }
+
+        var ordered = lines
+            .Where(l => !string.IsNullOrWhiteSpace(l.Text))
+            .OrderBy(l => l.Bounds.Y)
+            .ToList();
+
+        if (ordered.Count < 2)
+        {
+            return null;
+        }
+
+        var first = ordered[0].Text.Trim();
+        var rest = ordered.Skip(1).Select(l => l.Text.Trim()).ToList();
+        var avgRestLen = rest.Count > 0 ? rest.Average(t => t.Length) : 0;
+        if (avgRestLen <= 0)
+        {
+            return null;
+        }
+
+        var looksLikeName = first.Length <= 30 && first.Length <= avgRestLen * 0.9;
+        if (!looksLikeName)
+        {
+            return null;
+        }
+
+        var speech = string.Join(Environment.NewLine, rest);
+        return (first, speech);
     }
 
     private void RenderLayout(OcrLayoutResult layout)

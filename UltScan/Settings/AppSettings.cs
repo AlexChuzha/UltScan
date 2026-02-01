@@ -68,7 +68,9 @@ public sealed class OverlaySettings
 public enum OverlayOrientation
 {
     Right,
-    Bottom
+    Bottom,
+    Left,
+    Top
 }
 
 public sealed class TranslationSettings

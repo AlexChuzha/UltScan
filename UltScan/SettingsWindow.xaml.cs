@@ -29,7 +29,9 @@ public partial class SettingsWindow : Window
         _overlayOptions = new[]
         {
             new OverlayOption(OverlayOrientation.Right, "Settings.OverlayRight"),
-            new OverlayOption(OverlayOrientation.Bottom, "Settings.OverlayBottom")
+            new OverlayOption(OverlayOrientation.Bottom, "Settings.OverlayBottom"),
+            new OverlayOption(OverlayOrientation.Left, "Settings.OverlayLeft"),
+            new OverlayOption(OverlayOrientation.Top, "Settings.OverlayTop")
         };
 
         LocaleCombo.ItemsSource = _loc.Locales;

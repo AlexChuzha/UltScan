@@ -189,7 +189,10 @@ namespace UltScan
             _overlayWindow.Closed += (_, __) => _overlayWindow = null;
             _overlayWindow.Show();
 
-            _pinWindow = new PinButtonWindow(rect, CloseOverlayWindow, SetOverlayHighlight);
+            var outputRect = _overlayWindow != null
+                ? new Rect(_overlayWindow.Left, _overlayWindow.Top, _overlayWindow.Width, _overlayWindow.Height)
+                : (Rect?)null;
+            _pinWindow = new PinButtonWindow(rect, CloseOverlayWindow, SetOverlayHighlight, outputRect);
             _pinWindow.Closed += (_, __) => _pinWindow = null;
             _pinWindow.Show();
             UpdateTrayMenuText();

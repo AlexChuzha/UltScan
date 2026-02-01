@@ -35,6 +35,8 @@
     "Settings.OverlayOrientation": "Output orientation",
     "Settings.OverlayRight": "Output on the right",
     "Settings.OverlayBottom": "Output below",
+    "Settings.OverlayLeft": "Output on the left",
+    "Settings.OverlayTop": "Output above",
     "Settings.ExperimentalWarning": "Experimental mode may contain unexpected behavior. Disable it for a more stable experience.",
     "Settings.Save": "Save",
     "Settings.Cancel": "Cancel",
