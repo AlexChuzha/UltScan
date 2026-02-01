@@ -35,6 +35,7 @@ namespace UltScan
             Settings = AppSettings.Load();
             Localization = LocalizationService.LoadFromDisk();
             InitializeLocale();
+            InitializeTranslationSettings();
 
             CreateTrayIcon();
 
@@ -55,6 +56,27 @@ namespace UltScan
 
             Localization.SetLocale(localeId);
             Localization.LocaleChanged += (_, __) => UpdateLocalizedUi();
+        }
+
+        private void InitializeTranslationSettings()
+        {
+            var changed = false;
+            if (string.IsNullOrWhiteSpace(Settings.Translation.TargetLanguage))
+            {
+                Settings.Translation.TargetLanguage = TranslationLanguages.GetBestTargetLanguage(CultureInfo.CurrentUICulture);
+                changed = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(Settings.Translation.SourceLanguage))
+            {
+                Settings.Translation.SourceLanguage = "auto";
+                changed = true;
+            }
+
+            if (changed)
+            {
+                Settings.Save();
+            }
         }
 
         private void CreateMessageWindowForHotKeys()

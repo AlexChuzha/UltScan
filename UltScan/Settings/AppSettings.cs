@@ -9,6 +9,7 @@ public sealed class AppSettings
     public HotKeyConfig HotKey { get; set; } = HotKeyPresets.Default.ToConfig();
     public string LocaleId { get; set; } = string.Empty;
     public bool ExperimentalMode { get; set; }
+    public TranslationSettings Translation { get; set; } = new();
 
     public static AppSettings Default => new();
 
@@ -56,6 +57,17 @@ public sealed class AppSettings
         });
         File.WriteAllText(path, json);
     }
+}
+
+public sealed class TranslationSettings
+{
+    public bool Enabled { get; set; }
+    public string SourceLanguage { get; set; } = "auto";
+    public string TargetLanguage { get; set; } = string.Empty;
+    public int StabilizationMs { get; set; } = 700;
+    public double MinChangeRatio { get; set; } = 0.25;
+    public int PollIntervalMs { get; set; } = 500;
+    public string ProjectId { get; set; } = string.Empty;
 }
 
 public sealed class HotKeyConfig
