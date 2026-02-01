@@ -192,15 +192,14 @@ public partial class SettingsWindow : Window
     public void RefreshLocalization()
     {
         Title = _loc["Settings.Title"];
-        HotkeysHeader.Text = _loc["Settings.HotkeysHeader"];
+        InterfaceLanguageHeaderText.Text = _loc["Settings.InterfaceLanguageHeader"];
+        HotkeysGroupHeader.Text = _loc["Settings.HotkeysHeader"];
         HotkeysContext.Text = _loc["Settings.HotkeysContext"];
         HotkeysLabel.Text = _loc["Settings.HotkeysLabel"];
-        LanguageHeader.Text = _loc["Settings.LanguageHeader"];
         ExperimentalModeCheckBox.Content = _loc["Settings.ExperimentalMode"];
         ExperimentalWarningText.Text = _loc["Settings.ExperimentalWarning"];
         SaveButton.Content = _loc["Settings.Save"];
         CancelButton.Content = _loc["Settings.Cancel"];
-        TranslationHeader.Text = _loc["Settings.TranslationHeader"];
         TranslationEnabledCheckBox.Content = _loc["Settings.TranslationEnabled"];
         TranslationSourceLabel.Text = _loc["Settings.TranslationSource"];
         TranslationTargetLabel.Text = _loc["Settings.TranslationTarget"];
@@ -210,6 +209,9 @@ public partial class SettingsWindow : Window
         TranslationApiKeyWarning.Text = string.Format(
             _loc["Settings.TranslationApiKeyWarning"],
             TranslationService.ApiKeyEnvName);
+        TranslationLanguageHeaderText.Text = _loc["Settings.TranslationLanguagesHeader"];
+        TranslationConnectionHeaderText.Text = _loc["Settings.TranslationConnectionHeader"];
+        ExperimentalHeaderText.Text = _loc["Settings.ExperimentalHeader"];
 
         RebuildHotKeyItems();
         RebuildTranslationLanguageLists();
