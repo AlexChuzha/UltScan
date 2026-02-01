@@ -58,7 +58,7 @@ internal sealed class HotKeyManager : IDisposable
 }
 
 [Flags]
-internal enum ModifierKeys : uint
+public enum ModifierKeys : uint
 {
     Alt = 0x0001,
     Control = 0x0002,

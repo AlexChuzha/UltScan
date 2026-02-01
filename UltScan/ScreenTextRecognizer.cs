@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.IO;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
 using System.Windows;
@@ -33,7 +34,10 @@ public static class ScreenTextRecognizer
             return string.Empty;
         }
 
-        using var bitmap = new Bitmap(scaledRect.Width, scaledRect.Height, PixelFormat.Format32bppArgb);
+        using var bitmap = new Bitmap(scaledRect.Width,
+                                      scaledRect.Height,
+                                      System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+
         using (var graphics = Graphics.FromImage(bitmap))
         {
             graphics.CopyFromScreen(scaledRect.Left, scaledRect.Top, 0, 0, bitmap.Size, CopyPixelOperation.SourceCopy);

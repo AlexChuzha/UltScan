@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Windows;
@@ -16,9 +17,14 @@ namespace UltScan
         private MainWindow? _mainWindow;
         private TextOverlayWindow? _overlayWindow;
 
+        public AppSettings Settings { get; private set; } = AppSettings.Default;
+        public IReadOnlyList<HotKeyPreset> HotKeyPresetList => HotKeyPresets.All;
+
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+
+            Settings = AppSettings.Load();
 
             CreateTrayIcon();
 
@@ -48,21 +54,55 @@ namespace UltScan
 
         private void RegisterGlobalHotKey()
         {
-            const uint VK_Z = 0x5A; // virtual-key code для 'Z'
-
-            _hotKey = new HotKeyManager(
-                _messageWindow!,
-                ModifierKeys.Shift | ModifierKeys.Win | ModifierKeys.NoRepeat,
-                VK_Z);
-
-            _hotKey.HotKeyPressed += (_, __) =>
+            if (_messageWindow == null)
             {
-                Dispatcher.Invoke(() =>
+                return;
+            }
+
+            if (!TryApplyHotKey(Settings.HotKey, showError: false))
+            {
+                Settings.HotKey = HotKeyPresets.Default.ToConfig();
+                TryApplyHotKey(Settings.HotKey, showError: true);
+            }
+        }
+
+        public bool TryApplyHotKey(HotKeyConfig config, bool showError)
+        {
+            if (_messageWindow == null)
+            {
+                return false;
+            }
+
+            _hotKey?.Dispose();
+            _hotKey = null;
+
+            try
+            {
+                _hotKey = new HotKeyManager(_messageWindow, config.Modifiers, config.VirtualKey);
+                _hotKey.HotKeyPressed += (_, __) =>
                 {
-                    CloseOverlayWindow();
-                    ShowCaptureWindow();
-                });
-            };
+                    Dispatcher.Invoke(() =>
+                    {
+                        CloseOverlayWindow();
+                        ShowCaptureWindow();
+                    });
+                };
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (showError)
+                {
+                    System.Windows.MessageBox.Show(
+                        $"Не удалось зарегистрировать хоткей. Возможно, он занят другим приложением.\n\n{ex.Message}",
+                        "UltScan",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                }
+
+                return false;
+            }
         }
 
         private void ShowCaptureWindow()
