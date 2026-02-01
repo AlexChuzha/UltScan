@@ -14,6 +14,8 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock x:Name="HotkeysHeader"
@@ -61,7 +63,21 @@
                   SelectionChanged="LocaleCombo_SelectionChanged"
                   DisplayMemberPath="Name"/>
 
-        <StackPanel Grid.Row="8"
+        <CheckBox x:Name="ExperimentalModeCheckBox"
+                  Grid.Row="8"
+                  Margin="0,16,0,0"
+                  Content="Experimental"
+                  Checked="ExperimentalMode_Changed"
+                  Unchecked="ExperimentalMode_Changed"/>
+
+        <TextBlock x:Name="ExperimentalWarningText"
+                   Grid.Row="9"
+                   Margin="0,8,0,0"
+                   TextWrapping="Wrap"
+                   Foreground="#B00020"
+                   Visibility="Collapsed"/>
+
+        <StackPanel Grid.Row="10"
                     Margin="0,16,0,0"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right">

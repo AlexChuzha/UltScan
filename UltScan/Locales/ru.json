@@ -15,6 +15,8 @@
     "Settings.HotkeysContext": "Эта комбинация запускает режим выделения области для распознавания текста.",
     "Settings.HotkeysLabel": "Выберите комбинацию:",
     "Settings.LanguageHeader": "Язык интерфейса",
+    "Settings.ExperimentalMode": "Экспериментальный режим",
+    "Settings.ExperimentalWarning": "Экспериментальный режим может работать нестабильно и содержать неожиданные функции. Для стабильной работы отключите его.",
     "Settings.Save": "Сохранить",
     "Settings.Cancel": "Отмена",
     "HotKey.Preset.win_shift_z.Label": "Win + Shift + Z",

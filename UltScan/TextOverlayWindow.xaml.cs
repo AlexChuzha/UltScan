@@ -47,13 +47,71 @@ public partial class TextOverlayWindow : Window
         Opacity = 0;
         try
         {
-            var text = await ScreenTextRecognizer.RecognizeTextAsync(_captureRect, this);
-            Editor.Text = text;
-            Editor.CaretIndex = Editor.Text.Length;
+            var app = (App)System.Windows.Application.Current;
+            if (app.Settings.ExperimentalMode)
+            {
+                var layout = await ScreenTextRecognizer.RecognizeLayoutAsync(_captureRect, this);
+                if (layout.Lines.Count > 0)
+                {
+                    RenderLayout(layout);
+                }
+                else
+                {
+                    RenderPlainText(layout.Text);
+                }
+            }
+            else
+            {
+                var text = await ScreenTextRecognizer.RecognizeTextAsync(_captureRect, this);
+                RenderPlainText(text);
+            }
         }
         finally
         {
             Opacity = 1;
+        }
+    }
+
+    private void RenderPlainText(string text)
+    {
+        LayoutCanvas.Visibility = Visibility.Collapsed;
+        LayoutCanvas.Children.Clear();
+
+        Editor.Visibility = Visibility.Visible;
+        Editor.Text = text;
+        Editor.CaretIndex = Editor.Text.Length;
+    }
+
+    private void RenderLayout(OcrLayoutResult layout)
+    {
+        Editor.Visibility = Visibility.Collapsed;
+        Editor.Text = string.Empty;
+
+        LayoutCanvas.Visibility = Visibility.Visible;
+        LayoutCanvas.Children.Clear();
+
+        foreach (var line in layout.Lines)
+        {
+            if (string.IsNullOrWhiteSpace(line.Text))
+            {
+                continue;
+            }
+
+            var textBlock = new System.Windows.Controls.TextBlock
+            {
+                Text = line.Text,
+                FontSize = Editor.FontSize,
+                FontWeight = Editor.FontWeight,
+                Foreground = Editor.Foreground,
+                TextWrapping = TextWrapping.NoWrap
+            };
+
+            var localX = line.Bounds.X - _captureRect.X;
+            var localY = line.Bounds.Y - _captureRect.Y;
+
+            System.Windows.Controls.Canvas.SetLeft(textBlock, localX);
+            System.Windows.Controls.Canvas.SetTop(textBlock, localY);
+            LayoutCanvas.Children.Add(textBlock);
         }
     }
 

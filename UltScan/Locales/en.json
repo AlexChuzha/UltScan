@@ -15,6 +15,8 @@
     "Settings.HotkeysContext": "This shortcut starts selection mode for text recognition.",
     "Settings.HotkeysLabel": "Choose a shortcut:",
     "Settings.LanguageHeader": "Interface language",
+    "Settings.ExperimentalMode": "Experimental mode",
+    "Settings.ExperimentalWarning": "Experimental mode may contain unexpected behavior. Disable it for a more stable experience.",
     "Settings.Save": "Save",
     "Settings.Cancel": "Cancel",
     "HotKey.Preset.win_shift_z.Label": "Win + Shift + Z",

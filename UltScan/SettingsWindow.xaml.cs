@@ -64,11 +64,6 @@ public partial class SettingsWindow : Window
         Close();
     }
 
-    private void Cancel_Click(object sender, RoutedEventArgs e)
-    {
-        Close();
-    }
-
     private void LocaleCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_suppressLocaleChange)
@@ -86,6 +81,23 @@ public partial class SettingsWindow : Window
         _app.Settings.Save();
     }
 
+    private void Cancel_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    private void ExperimentalMode_Changed(object sender, RoutedEventArgs e)
+    {
+        if (ExperimentalModeCheckBox.IsChecked == null)
+        {
+            return;
+        }
+
+        _app.Settings.ExperimentalMode = ExperimentalModeCheckBox.IsChecked.Value;
+        _app.Settings.Save();
+        UpdateExperimentalWarning();
+    }
+
     public void RefreshLocalization()
     {
         Title = _loc["Settings.Title"];
@@ -93,6 +105,8 @@ public partial class SettingsWindow : Window
         HotkeysContext.Text = _loc["Settings.HotkeysContext"];
         HotkeysLabel.Text = _loc["Settings.HotkeysLabel"];
         LanguageHeader.Text = _loc["Settings.LanguageHeader"];
+        ExperimentalModeCheckBox.Content = _loc["Settings.ExperimentalMode"];
+        ExperimentalWarningText.Text = _loc["Settings.ExperimentalWarning"];
         SaveButton.Content = _loc["Settings.Save"];
         CancelButton.Content = _loc["Settings.Cancel"];
 
@@ -102,6 +116,16 @@ public partial class SettingsWindow : Window
         var localeId = _app.Localization.CurrentLocaleId;
         LocaleCombo.SelectedItem = _loc.Locales.FirstOrDefault(l => l.Id == localeId) ?? _loc.Locales.FirstOrDefault();
         _suppressLocaleChange = false;
+
+        ExperimentalModeCheckBox.IsChecked = _app.Settings.ExperimentalMode;
+        UpdateExperimentalWarning();
+    }
+
+    private void UpdateExperimentalWarning()
+    {
+        ExperimentalWarningText.Visibility = _app.Settings.ExperimentalMode
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private void RebuildHotKeyItems()
