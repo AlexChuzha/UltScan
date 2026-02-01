@@ -12,6 +12,7 @@ public partial class SettingsWindow : Window
     private bool _suppressLocaleChange;
     private bool _suppressTranslationChange;
     private bool _showAllLanguages;
+    private readonly ProviderOption[] _providerOptions;
 
     public SettingsWindow()
     {
@@ -19,6 +20,11 @@ public partial class SettingsWindow : Window
 
         _app = (App)System.Windows.Application.Current;
         _loc = _app.Localization;
+        _providerOptions = new[]
+        {
+            new ProviderOption(TranslationService.ProviderApi, "Settings.TranslationProviderApi"),
+            new ProviderOption(TranslationService.ProviderWeb, "Settings.TranslationProviderWeb")
+        };
 
         LocaleCombo.ItemsSource = _loc.Locales;
         RefreshLocalization();
@@ -135,10 +141,35 @@ public partial class SettingsWindow : Window
         UpdateTranslationWarnings();
     }
 
+    private void TranslationApiKey_Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        _app.Settings.Translation.ApiKey = TranslationApiKeyTextBox.Text.Trim();
+        _app.Settings.Save();
+        UpdateTranslationWarnings();
+    }
+
     private void MoreLanguages_Click(object sender, RoutedEventArgs e)
     {
         _showAllLanguages = !_showAllLanguages;
         RebuildTranslationLanguageLists();
+    }
+
+    private void TranslationProvider_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressTranslationChange)
+        {
+            return;
+        }
+
+        if (TranslationProviderCombo.SelectedItem is not ProviderOption option)
+        {
+            return;
+        }
+
+        _app.Settings.Translation.Provider = option.Id;
+        _app.Settings.Save();
+        UpdateTranslationWarnings();
+        UpdateTranslationApiFields();
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
@@ -174,6 +205,8 @@ public partial class SettingsWindow : Window
         TranslationSourceLabel.Text = _loc["Settings.TranslationSource"];
         TranslationTargetLabel.Text = _loc["Settings.TranslationTarget"];
         TranslationProjectLabel.Text = _loc["Settings.TranslationProject"];
+        TranslationApiKeyLabel.Text = _loc["Settings.TranslationApiKeyLabel"];
+        TranslationProviderLabel.Text = _loc["Settings.TranslationProvider"];
         TranslationApiKeyWarning.Text = string.Format(
             _loc["Settings.TranslationApiKeyWarning"],
             TranslationService.ApiKeyEnvName);
@@ -189,8 +222,10 @@ public partial class SettingsWindow : Window
         ExperimentalModeCheckBox.IsChecked = _app.Settings.ExperimentalMode;
         TranslationEnabledCheckBox.IsChecked = _app.Settings.Translation.Enabled;
         TranslationProjectTextBox.Text = _app.Settings.Translation.ProjectId;
+        TranslationApiKeyTextBox.Text = _app.Settings.Translation.ApiKey;
         UpdateExperimentalWarning();
         UpdateTranslationWarnings();
+        UpdateTranslationApiFields();
     }
 
     private void UpdateExperimentalWarning()
@@ -234,6 +269,14 @@ public partial class SettingsWindow : Window
         TranslationSourceCombo.SelectedItem = sourceList.FirstOrDefault(l => l.Code == sourceCode) ?? sourceList.FirstOrDefault();
         TranslationTargetCombo.SelectedItem = targetList.FirstOrDefault(l => l.Code == targetCode) ?? targetList.FirstOrDefault();
 
+        TranslationProviderCombo.ItemsSource = _providerOptions
+            .Select(p => new ProviderOption(p.Id, p.NameKey) { DisplayName = _loc[p.NameKey] })
+            .ToList();
+        TranslationProviderCombo.SelectedItem = TranslationProviderCombo.ItemsSource
+            .Cast<ProviderOption>()
+            .FirstOrDefault(p => p.Id == _app.Settings.Translation.Provider)
+            ?? TranslationProviderCombo.ItemsSource.Cast<ProviderOption>().FirstOrDefault();
+
         MoreLanguagesButton.Content = _showAllLanguages
             ? _loc["Settings.LanguagesLess"]
             : _loc["Settings.LanguagesMore"];
@@ -243,11 +286,36 @@ public partial class SettingsWindow : Window
 
     private void UpdateTranslationWarnings()
     {
-        var keyMissing = string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(TranslationService.ApiKeyEnvName));
+        var isApi = string.Equals(_app.Settings.Translation.Provider, TranslationService.ProviderApi, StringComparison.OrdinalIgnoreCase);
+        var keyMissing = string.IsNullOrWhiteSpace(_app.Settings.Translation.ApiKey)
+            && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(TranslationService.ApiKeyEnvName));
         var projectMissing = string.IsNullOrWhiteSpace(_app.Settings.Translation.ProjectId);
-        var showWarning = _app.Settings.Translation.Enabled && (keyMissing || projectMissing);
+        var showWarning = _app.Settings.Translation.Enabled && isApi && (keyMissing || projectMissing);
 
         TranslationApiKeyWarning.Visibility = showWarning ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void UpdateTranslationApiFields()
+    {
+        var isApi = string.Equals(_app.Settings.Translation.Provider, TranslationService.ProviderApi, StringComparison.OrdinalIgnoreCase);
+        TranslationProjectLabel.IsEnabled = isApi;
+        TranslationProjectTextBox.IsEnabled = isApi;
+        TranslationApiKeyLabel.IsEnabled = isApi;
+        TranslationApiKeyTextBox.IsEnabled = isApi;
+    }
+
+    private sealed class ProviderOption
+    {
+        public ProviderOption(string id, string nameKey)
+        {
+            Id = id;
+            NameKey = nameKey;
+            DisplayName = nameKey;
+        }
+
+        public string Id { get; }
+        public string NameKey { get; }
+        public string DisplayName { get; set; }
     }
 
     private sealed class HotKeyPresetItem

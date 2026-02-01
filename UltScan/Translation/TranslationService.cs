@@ -1,8 +1,10 @@
 using System;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace UltScan;
 
@@ -11,8 +13,31 @@ public static class TranslationService
     private static readonly HttpClient Client = new();
 
     public static string ApiKeyEnvName => "ULTSCAN_GOOGLE_TRANSLATE_API_KEY";
+    public const string ProviderApi = "api";
+    public const string ProviderWeb = "web";
 
-    public static async Task<string?> TranslateAsync(string text, string sourceLanguage, string targetLanguage, string projectId)
+    public static async Task<string?> TranslateAsync(
+        string text,
+        string sourceLanguage,
+        string targetLanguage,
+        string projectId,
+        string? apiKeyOverride,
+        string provider)
+    {
+        if (string.Equals(provider, ProviderWeb, StringComparison.OrdinalIgnoreCase))
+        {
+            return await TranslateViaWebAsync(text, sourceLanguage, targetLanguage).ConfigureAwait(false);
+        }
+
+        return await TranslateViaApiAsync(text, sourceLanguage, targetLanguage, projectId, apiKeyOverride).ConfigureAwait(false);
+    }
+
+    private static async Task<string?> TranslateViaApiAsync(
+        string text,
+        string sourceLanguage,
+        string targetLanguage,
+        string projectId,
+        string? apiKeyOverride)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
@@ -24,7 +49,9 @@ public static class TranslationService
             return null;
         }
 
-        var apiKey = Environment.GetEnvironmentVariable(ApiKeyEnvName);
+        var apiKey = !string.IsNullOrWhiteSpace(apiKeyOverride)
+            ? apiKeyOverride
+            : Environment.GetEnvironmentVariable(ApiKeyEnvName);
         if (string.IsNullOrWhiteSpace(apiKey))
         {
             return null;
@@ -54,6 +81,34 @@ public static class TranslationService
         return result?.Translations != null && result.Translations.Length > 0
             ? result.Translations[0].TranslatedText
             : null;
+    }
+
+    private static async Task<string?> TranslateViaWebAsync(string text, string sourceLanguage, string targetLanguage)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        if (string.IsNullOrWhiteSpace(targetLanguage))
+        {
+            return null;
+        }
+
+        var sl = string.IsNullOrWhiteSpace(sourceLanguage) ? "auto" : sourceLanguage;
+        var tl = targetLanguage;
+        var url = $"https://translate.google.com/m?sl={Uri.EscapeDataString(sl)}&tl={Uri.EscapeDataString(tl)}&q={Uri.EscapeDataString(text)}";
+
+        var html = await Client.GetStringAsync(url).ConfigureAwait(false);
+        var match = Regex.Match(html, "class=\"result-container\">(?<t>.*?)</div>", RegexOptions.Singleline);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var raw = match.Groups["t"].Value;
+        var decoded = WebUtility.HtmlDecode(raw);
+        return decoded;
     }
 
     private sealed class TranslateRequest

@@ -149,14 +149,23 @@ public partial class TextOverlayWindow : Window
             text,
             app.Settings.Translation.SourceLanguage,
             app.Settings.Translation.TargetLanguage,
-            app.Settings.Translation.ProjectId);
+            app.Settings.Translation.ProjectId,
+            app.Settings.Translation.ApiKey,
+            app.Settings.Translation.Provider);
 
         if (translated == null)
         {
             return;
         }
 
-        await Dispatcher.InvokeAsync(() => RenderPlainText(translated));
+        await Dispatcher.InvokeAsync(() =>
+        {
+            RenderPlainText(translated);
+            if (app.Settings.ExperimentalMode)
+            {
+                Editor.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 76, 217, 100));
+            }
+        });
     }
 
     private static string NormalizeForCompare(string text)
@@ -242,6 +251,7 @@ public partial class TextOverlayWindow : Window
         Editor.Visibility = Visibility.Visible;
         Editor.Text = text;
         Editor.CaretIndex = Editor.Text.Length;
+        Editor.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 242, 242, 242));
     }
 
     private void RenderLayout(OcrLayoutResult layout)

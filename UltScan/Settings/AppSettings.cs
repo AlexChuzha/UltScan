@@ -68,6 +68,8 @@ public sealed class TranslationSettings
     public double MinChangeRatio { get; set; } = 0.25;
     public int PollIntervalMs { get; set; } = 500;
     public string ProjectId { get; set; } = string.Empty;
+    public string ApiKey { get; set; } = string.Empty;
+    public string Provider { get; set; } = TranslationService.ProviderWeb;
 }
 
 public sealed class HotKeyConfig

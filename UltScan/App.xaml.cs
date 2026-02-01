@@ -73,6 +73,12 @@ namespace UltScan
                 changed = true;
             }
 
+            if (string.IsNullOrWhiteSpace(Settings.Translation.Provider))
+            {
+                Settings.Translation.Provider = TranslationService.ProviderWeb;
+                changed = true;
+            }
+
             if (changed)
             {
                 Settings.Save();
