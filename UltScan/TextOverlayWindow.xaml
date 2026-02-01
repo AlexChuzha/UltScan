@@ -9,10 +9,11 @@
         Background="Transparent">
 
     <!-- Полупрозрачная "карточка", чтобы текст читался -->
-    <Border Background="#99444444"
+    <Border x:Name="Card"
+            Background="#99444444"
             CornerRadius="10"
-            BorderBrush="#66000000"
-            BorderThickness="1"
+            BorderBrush="Transparent"
+            BorderThickness="0"
             Padding="10">
 
         <TextBox x:Name="Editor"

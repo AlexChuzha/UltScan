@@ -3,6 +3,9 @@
   "name": "English",
   "strings": {
     "App.Tray.Settings": "Settings",
+    "App.Tray.CaptureWithHotKey": "New overlay ({0})",
+    "App.Tray.RepeatLast": "Repeat last overlay",
+    "App.Tray.CloseOverlay": "Close overlay",
     "App.Tray.Exit": "Exit",
     "Message.Title": "UltScan",
     "Message.HotKeyRegisterFail": "Failed to register the hotkey. It may be used by another app.\n\n{0}",
@@ -33,5 +36,7 @@
     "HotKey.Preset.ctrl_only.Label": "Ctrl",
     "HotKey.Preset.ctrl_only.Hint": "Fastest, but the riskiest option.",
     "HotKey.Preset.ctrl_only.Warning": "Warning: a single Ctrl is often captured by the system and apps; the hotkey may not work or can interfere with typing."
+    ,
+    "HotKey.Custom": "Custom"
   }
 }

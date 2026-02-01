@@ -12,11 +12,17 @@ namespace UltScan
     public partial class App : System.Windows.Application
     {
         private Forms.NotifyIcon? _notifyIcon;
+        private Forms.ToolStripMenuItem? _captureItem;
+        private Forms.ToolStripMenuItem? _repeatItem;
+        private Forms.ToolStripMenuItem? _settingsItem;
+        private Forms.ToolStripMenuItem? _exitItem;
         private SettingsWindow? _settingsWindow;
         private Window? _messageWindow;
         private HotKeyManager? _hotKey;
         private MainWindow? _mainWindow;
         private TextOverlayWindow? _overlayWindow;
+        private PinButtonWindow? _pinWindow;
+        private Rect? _lastCaptureRect;
 
         public AppSettings Settings { get; private set; } = AppSettings.Default;
         public IReadOnlyList<HotKeyPreset> HotKeyPresetList => HotKeyPresets.All;
@@ -144,13 +150,31 @@ namespace UltScan
         {
             CloseOverlayWindow();
 
+            _lastCaptureRect = rect;
+            UpdateTrayMenuText();
             _overlayWindow = new TextOverlayWindow(rect);
             _overlayWindow.Closed += (_, __) => _overlayWindow = null;
             _overlayWindow.Show();
+
+            _pinWindow = new PinButtonWindow(rect, CloseOverlayWindow, SetOverlayHighlight);
+            _pinWindow.Closed += (_, __) => _pinWindow = null;
+            _pinWindow.Show();
+            UpdateTrayMenuText();
+        }
+
+        private void SetOverlayHighlight(bool isHighlighted)
+        {
+            _overlayWindow?.SetHighlight(isHighlighted);
         }
 
         private void CloseOverlayWindow()
         {
+            if (_pinWindow != null)
+            {
+                _pinWindow.Close();
+                _pinWindow = null;
+            }
+
             if (_overlayWindow == null)
             {
                 return;
@@ -158,6 +182,7 @@ namespace UltScan
 
             _overlayWindow.Close();
             _overlayWindow = null;
+            UpdateTrayMenuText();
         }
 
         private void CreateTrayIcon()
@@ -171,33 +196,92 @@ namespace UltScan
 
             var menu = new Forms.ContextMenuStrip();
 
-            var settingsItem = new Forms.ToolStripMenuItem(Localization["App.Tray.Settings"]);
-            settingsItem.Click += (_, __) => ShowSettingsWindow();
+            _captureItem = new Forms.ToolStripMenuItem();
+            _captureItem.Click += (_, __) => ShowCaptureWindow();
 
-            var exitItem = new Forms.ToolStripMenuItem(Localization["App.Tray.Exit"]);
-            exitItem.Click += (_, __) => ExitApplication();
+            _repeatItem = new Forms.ToolStripMenuItem();
+            _repeatItem.Click += (_, __) =>
+            {
+                if (_overlayWindow != null)
+                {
+                    CloseOverlayWindow();
+                }
+                else if (_lastCaptureRect.HasValue)
+                {
+                    ShowOverlayWindow(_lastCaptureRect.Value);
+                }
+            };
 
-            menu.Items.Add(settingsItem);
+            _settingsItem = new Forms.ToolStripMenuItem(Localization["App.Tray.Settings"]);
+            _settingsItem.Click += (_, __) => ShowSettingsWindow();
+
+            _exitItem = new Forms.ToolStripMenuItem(Localization["App.Tray.Exit"]);
+            _exitItem.Click += (_, __) => ExitApplication();
+
+            menu.Items.Add(_captureItem);
+            menu.Items.Add(_repeatItem);
             menu.Items.Add(new Forms.ToolStripSeparator());
-            menu.Items.Add(exitItem);
+            menu.Items.Add(_settingsItem);
+            menu.Items.Add(new Forms.ToolStripSeparator());
+            menu.Items.Add(_exitItem);
 
             _notifyIcon.ContextMenuStrip = menu;
+            UpdateTrayMenuText();
         }
 
         private void UpdateLocalizedUi()
         {
             if (_notifyIcon?.ContextMenuStrip != null)
             {
-                var items = _notifyIcon.ContextMenuStrip.Items;
-                if (items.Count >= 3)
-                {
-                    items[0].Text = Localization["App.Tray.Settings"];
-                    items[2].Text = Localization["App.Tray.Exit"];
-                }
+                UpdateTrayMenuText();
             }
 
             _settingsWindow?.RefreshLocalization();
             _mainWindow?.RefreshLocalization();
+        }
+
+        public void UpdateTrayMenuText()
+        {
+            if (_captureItem == null || _repeatItem == null || _settingsItem == null || _exitItem == null)
+            {
+                return;
+            }
+
+            var hotkeyLabel = FormatHotKeyLabelForMenu(GetCurrentHotKeyLabel());
+            _captureItem.Text = string.Format(Localization["App.Tray.CaptureWithHotKey"], hotkeyLabel);
+            if (_overlayWindow != null || _pinWindow != null)
+            {
+                _repeatItem.Text = Localization["App.Tray.CloseOverlay"];
+                _repeatItem.Enabled = true;
+            }
+            else
+            {
+                _repeatItem.Text = Localization["App.Tray.RepeatLast"];
+                _repeatItem.Enabled = _lastCaptureRect.HasValue;
+            }
+            _settingsItem.Text = Localization["App.Tray.Settings"];
+            _exitItem.Text = Localization["App.Tray.Exit"];
+        }
+
+        private string GetCurrentHotKeyLabel()
+        {
+            var preset = HotKeyPresets.FindById(Settings.HotKey.Id);
+            if (preset != null)
+            {
+                return Localization[preset.LabelKey];
+            }
+
+            return Localization["HotKey.Custom"];
+        }
+
+        private static string FormatHotKeyLabelForMenu(string label)
+        {
+            if (string.IsNullOrWhiteSpace(label))
+            {
+                return label;
+            }
+
+            return label.Replace("Win", "Win (⊞)");
         }
 
         private Icon LoadTrayIcon()

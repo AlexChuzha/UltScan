@@ -37,14 +37,14 @@ public partial class MainWindow : Window
 
     public void StartCaptureMode()
     {
-        // Полный экран (по основному монитору)
+        // Полный экран по всем мониторам
         WindowState = WindowState.Normal;
         WindowStartupLocation = WindowStartupLocation.Manual;
 
-        Left = 0;
-        Top = 0;
-        Width = SystemParameters.PrimaryScreenWidth;
-        Height = SystemParameters.PrimaryScreenHeight;
+        Left = SystemParameters.VirtualScreenLeft;
+        Top = SystemParameters.VirtualScreenTop;
+        Width = SystemParameters.VirtualScreenWidth;
+        Height = SystemParameters.VirtualScreenHeight;
 
         SelectionRect.Visibility = Visibility.Collapsed;
         _isDragging = false;
@@ -101,6 +101,7 @@ public partial class MainWindow : Window
         UpdateSelectionVisual(_start, _end);
 
         var rect = GetNormalizedRect(_start, _end);
+        rect = new WpfRect(rect.X + Left, rect.Y + Top, rect.Width, rect.Height);
 
         if (rect.Width < 10 || rect.Height < 10)
         {

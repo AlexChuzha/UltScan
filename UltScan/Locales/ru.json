@@ -3,6 +3,9 @@
   "name": "Русский",
   "strings": {
     "App.Tray.Settings": "Настройки",
+    "App.Tray.CaptureWithHotKey": "Создать оверлей ({0})",
+    "App.Tray.RepeatLast": "Повторить последний оверлей",
+    "App.Tray.CloseOverlay": "Закрыть оверлей",
     "App.Tray.Exit": "Выход",
     "Message.Title": "UltScan",
     "Message.HotKeyRegisterFail": "Не удалось зарегистрировать хоткей. Возможно, он занят другим приложением.\n\n{0}",
@@ -33,5 +36,7 @@
     "HotKey.Preset.ctrl_only.Label": "Ctrl",
     "HotKey.Preset.ctrl_only.Hint": "Самый быстрый, но и самый рискованный вариант.",
     "HotKey.Preset.ctrl_only.Warning": "Внимание: одиночный Ctrl часто перехватывается системой и приложениями; возможно, хоткей не сработает или будет мешать набору текста."
+    ,
+    "HotKey.Custom": "Своя комбинация"
   }
 }

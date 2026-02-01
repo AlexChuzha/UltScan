@@ -60,6 +60,7 @@ public partial class SettingsWindow : Window
 
         _app.Settings.HotKey = config;
         _app.Settings.Save();
+        _app.UpdateTrayMenuText();
         Close();
     }
 
