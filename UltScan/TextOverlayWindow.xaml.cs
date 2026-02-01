@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Drawing;
+using Forms = System.Windows.Forms;
 
 namespace UltScan;
 
@@ -49,38 +51,40 @@ public partial class TextOverlayWindow : Window
     {
         var app = (App)System.Windows.Application.Current;
         var orientation = app.Settings.Overlay.Orientation;
-
-        Left = _captureRect.Left;
-        Top = _captureRect.Top;
+        Width = _captureRect.Width;
+        Height = _captureRect.Height;
 
         if (orientation == OverlayOrientation.Bottom)
         {
-            Width = _captureRect.Width;
-            Height = _captureRect.Height * 2;
-
-            System.Windows.Controls.Grid.SetRow(Card, 1);
-            System.Windows.Controls.Grid.SetColumn(Card, 0);
-            System.Windows.Controls.Grid.SetRowSpan(Card, 1);
-
-            CaptureRow.Height = new GridLength(1, GridUnitType.Star);
-            OutputRow.Height = new GridLength(1, GridUnitType.Star);
-            CaptureColumn.Width = new GridLength(1, GridUnitType.Star);
-            OutputColumn.Width = new GridLength(0);
+            Left = _captureRect.Left;
+            Top = _captureRect.Bottom;
         }
         else
         {
-            Width = _captureRect.Width * 2;
-            Height = _captureRect.Height;
-
-            System.Windows.Controls.Grid.SetRow(Card, 0);
-            System.Windows.Controls.Grid.SetColumn(Card, 1);
-            System.Windows.Controls.Grid.SetColumnSpan(Card, 1);
-
-            CaptureColumn.Width = new GridLength(1, GridUnitType.Star);
-            OutputColumn.Width = new GridLength(1, GridUnitType.Star);
-            CaptureRow.Height = new GridLength(1, GridUnitType.Star);
-            OutputRow.Height = new GridLength(0);
+            Left = _captureRect.Right;
+            Top = _captureRect.Top;
         }
+
+        ClampToScreen();
+    }
+
+    private void ClampToScreen()
+    {
+        var rect = new Rectangle((int)Left, (int)Top, (int)Math.Max(1, Width), (int)Math.Max(1, Height));
+        var screen = Forms.Screen.FromRectangle(rect).WorkingArea;
+
+        if (Left + Width > screen.Right)
+        {
+            Left = screen.Right - Width;
+        }
+
+        if (Top + Height > screen.Bottom)
+        {
+            Top = screen.Bottom - Height;
+        }
+
+        if (Left < screen.Left) Left = screen.Left;
+        if (Top < screen.Top) Top = screen.Top;
     }
 
     private async Task StartRecognitionAsync()
@@ -124,7 +128,7 @@ public partial class TextOverlayWindow : Window
         var text = layout.Text;
         RenderPlainText(text);
         _lastCandidate = NormalizeForCompare(text);
-        _lastStable = _lastCandidate;
+        _lastStable = string.Empty;
         _lastChangeUtc = DateTime.UtcNow;
     }
 
@@ -173,10 +177,13 @@ public partial class TextOverlayWindow : Window
             return;
         }
 
-        var ratio = GetChangeRatio(normalized, _lastStable);
-        if (ratio < app.Settings.Translation.MinChangeRatio)
+        if (!string.IsNullOrEmpty(_lastStable))
         {
-            return;
+            var ratio = GetChangeRatio(normalized, _lastStable);
+            if (ratio < app.Settings.Translation.MinChangeRatio)
+            {
+                return;
+            }
         }
 
         _lastStable = normalized;
@@ -297,6 +304,7 @@ public partial class TextOverlayWindow : Window
         Editor.Text = text;
         Editor.CaretIndex = Editor.Text.Length;
         Editor.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 242, 242, 242));
+        AdjustHeightToContent(Editor);
     }
 
     private void RenderExperimentalTranslation(string original, string header, string translated)
@@ -310,6 +318,7 @@ public partial class TextOverlayWindow : Window
         TranslationPanel.Visibility = Visibility.Visible;
         OriginalTextBlock.Text = original;
         TranslatedTextBlock.Text = header + Environment.NewLine + translated;
+        AdjustHeightToContent(TranslationPanel);
     }
 
     private void RenderLayout(OcrLayoutResult layout)
@@ -344,6 +353,30 @@ public partial class TextOverlayWindow : Window
             System.Windows.Controls.Canvas.SetTop(textBlock, localY);
             LayoutCanvas.Children.Add(textBlock);
         }
+
+        AdjustHeightToContent(Editor);
+    }
+
+    private void AdjustHeightToContent(FrameworkElement element)
+    {
+        var minHeight = _captureRect.Height;
+        var availableWidth = Math.Max(1, Width - Card.Padding.Left - Card.Padding.Right);
+
+        element.Measure(new System.Windows.Size(availableWidth, double.PositiveInfinity));
+        var desired = element.DesiredSize.Height + Card.Padding.Top + Card.Padding.Bottom;
+
+        var rect = new Rectangle((int)Left, (int)Top, (int)Math.Max(1, Width), 1);
+        var screen = Forms.Screen.FromRectangle(rect).WorkingArea;
+        var maxHeight = screen.Height;
+
+        var newHeight = Math.Max(minHeight, desired);
+        if (newHeight > maxHeight)
+        {
+            newHeight = maxHeight;
+        }
+
+        Height = newHeight;
+        ClampToScreen();
     }
 
     private void EnableClickThrough()
