@@ -62,6 +62,6 @@
     ,
     "HotKey.Custom": "Своя комбинация"
     ,
-    "Overlay.TranslatedHeader": "Переведено в {0} • {1}"
+    "Overlay.TranslatedHeader": "Перевод • {0}"
   }
 }

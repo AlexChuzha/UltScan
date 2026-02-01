@@ -62,6 +62,6 @@
     ,
     "HotKey.Custom": "Custom"
     ,
-    "Overlay.TranslatedHeader": "Translated to {0} • {1}"
+    "Overlay.TranslatedHeader": "Translation • {0}"
   }
 }

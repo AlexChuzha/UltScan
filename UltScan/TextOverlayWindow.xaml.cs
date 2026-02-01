@@ -226,7 +226,7 @@ public partial class TextOverlayWindow : Window
         _lastLayoutLines = lines.ToList();
 
         var split = app.Settings.ExperimentalMode ? TrySplitNameAndSpeech(_lastLayoutLines) : null;
-        var textToTranslate = split?.speech ?? text;
+        var textToTranslate = text;
 
         var translated = await TranslationService.TranslateAsync(
             textToTranslate,
@@ -245,11 +245,8 @@ public partial class TextOverlayWindow : Window
         {
             if (app.Settings.ExperimentalMode)
             {
-                var langName = TranslationLanguages.GetLanguages(includeAll: true, includeAuto: false)
-                    .FirstOrDefault(l => l.Code == app.Settings.Translation.TargetLanguage)?.Name
-                    ?? app.Settings.Translation.TargetLanguage;
                 var stamp = DateTime.Now.ToString("HH:mm:ss");
-                var header = string.Format(app.Localization["Overlay.TranslatedHeader"], langName, stamp);
+                var header = string.Format(app.Localization["Overlay.TranslatedHeader"], stamp);
                 if (split != null)
                 {
                     RenderExperimentalTranslationFromLayout(split.Value.name, split.Value.speech, header, translated);
@@ -364,11 +361,12 @@ public partial class TextOverlayWindow : Window
 
         TranslationPanel.Visibility = Visibility.Visible;
         OriginalTextBlock.Text = original;
-        TranslatedTextBlock.Text = header + Environment.NewLine + translated;
+        TranslationHeaderTextBlock.Text = header;
+        TranslatedTextBlock.Text = translated;
         AdjustHeightToContent(TranslationPanel);
     }
 
-    private void RenderExperimentalTranslationFromLayout(string name, string speech, string header, string translatedSpeech)
+    private void RenderExperimentalTranslationFromLayout(string name, string speech, string header, string translatedText)
     {
         LayoutCanvas.Visibility = Visibility.Collapsed;
         LayoutCanvas.Children.Clear();
@@ -380,9 +378,8 @@ public partial class TextOverlayWindow : Window
         OriginalTextBlock.Text = string.IsNullOrWhiteSpace(name)
             ? speech
             : name + Environment.NewLine + speech;
-        TranslatedTextBlock.Text = string.IsNullOrWhiteSpace(name)
-            ? header + Environment.NewLine + translatedSpeech
-            : header + Environment.NewLine + name + Environment.NewLine + translatedSpeech;
+        TranslationHeaderTextBlock.Text = header;
+        TranslatedTextBlock.Text = translatedText;
         AdjustHeightToContent(TranslationPanel);
     }
 
