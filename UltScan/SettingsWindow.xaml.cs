@@ -13,6 +13,7 @@ public partial class SettingsWindow : Window
     private bool _suppressTranslationChange;
     private bool _showAllLanguages;
     private readonly ProviderOption[] _providerOptions;
+    private readonly OverlayOption[] _overlayOptions;
 
     public SettingsWindow()
     {
@@ -24,6 +25,11 @@ public partial class SettingsWindow : Window
         {
             new ProviderOption(TranslationService.ProviderApi, "Settings.TranslationProviderApi"),
             new ProviderOption(TranslationService.ProviderWeb, "Settings.TranslationProviderWeb")
+        };
+        _overlayOptions = new[]
+        {
+            new OverlayOption(OverlayOrientation.Right, "Settings.OverlayRight"),
+            new OverlayOption(OverlayOrientation.Bottom, "Settings.OverlayBottom")
         };
 
         LocaleCombo.ItemsSource = _loc.Locales;
@@ -172,6 +178,22 @@ public partial class SettingsWindow : Window
         UpdateTranslationApiFields();
     }
 
+    private void OverlayOrientation_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressTranslationChange)
+        {
+            return;
+        }
+
+        if (OverlayOrientationCombo.SelectedItem is not OverlayOption option)
+        {
+            return;
+        }
+
+        _app.Settings.Overlay.Orientation = option.Value;
+        _app.Settings.Save();
+    }
+
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
         Close();
@@ -212,6 +234,8 @@ public partial class SettingsWindow : Window
         TranslationLanguageHeaderText.Text = _loc["Settings.TranslationLanguagesHeader"];
         TranslationConnectionHeaderText.Text = _loc["Settings.TranslationConnectionHeader"];
         ExperimentalHeaderText.Text = _loc["Settings.ExperimentalHeader"];
+        OverlayHeaderText.Text = _loc["Settings.OverlayHeader"];
+        OverlayOrientationLabel.Text = _loc["Settings.OverlayOrientation"];
 
         RebuildHotKeyItems();
         RebuildTranslationLanguageLists();
@@ -228,6 +252,7 @@ public partial class SettingsWindow : Window
         UpdateExperimentalWarning();
         UpdateTranslationWarnings();
         UpdateTranslationApiFields();
+        RebuildOverlayOptions();
     }
 
     private void UpdateExperimentalWarning()
@@ -297,6 +322,22 @@ public partial class SettingsWindow : Window
         TranslationApiKeyWarning.Visibility = showWarning ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    private void RebuildOverlayOptions()
+    {
+        _suppressTranslationChange = true;
+
+        OverlayOrientationCombo.ItemsSource = _overlayOptions
+            .Select(o => new OverlayOption(o.Value, o.NameKey) { DisplayName = _loc[o.NameKey] })
+            .ToList();
+
+        OverlayOrientationCombo.SelectedItem = OverlayOrientationCombo.ItemsSource
+            .Cast<OverlayOption>()
+            .FirstOrDefault(o => o.Value == _app.Settings.Overlay.Orientation)
+            ?? OverlayOrientationCombo.ItemsSource.Cast<OverlayOption>().FirstOrDefault();
+
+        _suppressTranslationChange = false;
+    }
+
     private void UpdateTranslationApiFields()
     {
         var isApi = string.Equals(_app.Settings.Translation.Provider, TranslationService.ProviderApi, StringComparison.OrdinalIgnoreCase);
@@ -330,5 +371,19 @@ public partial class SettingsWindow : Window
 
         public HotKeyPreset Preset { get; }
         public string DisplayName { get; }
+    }
+
+    private sealed class OverlayOption
+    {
+        public OverlayOption(OverlayOrientation value, string nameKey)
+        {
+            Value = value;
+            NameKey = nameKey;
+            DisplayName = nameKey;
+        }
+
+        public OverlayOrientation Value { get; }
+        public string NameKey { get; }
+        public string DisplayName { get; set; }
     }
 }

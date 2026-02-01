@@ -67,6 +67,22 @@
 
                 <GroupBox Margin="0,0,0,12">
                     <GroupBox.Header>
+                        <TextBlock x:Name="OverlayHeaderText"
+                                   FontWeight="SemiBold"/>
+                    </GroupBox.Header>
+                    <StackPanel Margin="8">
+                        <TextBlock x:Name="OverlayOrientationLabel"
+                                   Margin="0,0,0,4"
+                                   FontWeight="SemiBold"/>
+                        <ComboBox x:Name="OverlayOrientationCombo"
+                                  MinWidth="240"
+                                  SelectionChanged="OverlayOrientation_SelectionChanged"
+                                  DisplayMemberPath="DisplayName"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Margin="0,0,0,12">
+                    <GroupBox.Header>
                         <TextBlock x:Name="TranslationLanguageHeaderText"
                                    FontWeight="SemiBold"/>
                     </GroupBox.Header>

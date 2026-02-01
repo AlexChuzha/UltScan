@@ -28,10 +28,7 @@ public partial class TextOverlayWindow : Window
 
         _captureRect = rect;
 
-        Left = _captureRect.Left;
-        Top = _captureRect.Top;
-        Width = _captureRect.Width;
-        Height = _captureRect.Height;
+        ConfigureLayout();
 
         SourceInitialized += (_, __) => EnableClickThrough();
 
@@ -46,6 +43,44 @@ public partial class TextOverlayWindow : Window
         _defaultBackground = Card.Background;
         _defaultBorderBrush = Card.BorderBrush;
         _defaultBorderThickness = Card.BorderThickness;
+    }
+
+    private void ConfigureLayout()
+    {
+        var app = (App)System.Windows.Application.Current;
+        var orientation = app.Settings.Overlay.Orientation;
+
+        Left = _captureRect.Left;
+        Top = _captureRect.Top;
+
+        if (orientation == OverlayOrientation.Bottom)
+        {
+            Width = _captureRect.Width;
+            Height = _captureRect.Height * 2;
+
+            System.Windows.Controls.Grid.SetRow(Card, 1);
+            System.Windows.Controls.Grid.SetColumn(Card, 0);
+            System.Windows.Controls.Grid.SetRowSpan(Card, 1);
+
+            CaptureRow.Height = new GridLength(1, GridUnitType.Star);
+            OutputRow.Height = new GridLength(1, GridUnitType.Star);
+            CaptureColumn.Width = new GridLength(1, GridUnitType.Star);
+            OutputColumn.Width = new GridLength(0);
+        }
+        else
+        {
+            Width = _captureRect.Width * 2;
+            Height = _captureRect.Height;
+
+            System.Windows.Controls.Grid.SetRow(Card, 0);
+            System.Windows.Controls.Grid.SetColumn(Card, 1);
+            System.Windows.Controls.Grid.SetColumnSpan(Card, 1);
+
+            CaptureColumn.Width = new GridLength(1, GridUnitType.Star);
+            OutputColumn.Width = new GridLength(1, GridUnitType.Star);
+            CaptureRow.Height = new GridLength(1, GridUnitType.Star);
+            OutputRow.Height = new GridLength(0);
+        }
     }
 
     private async Task StartRecognitionAsync()

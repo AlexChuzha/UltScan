@@ -10,6 +10,7 @@ public sealed class AppSettings
     public string LocaleId { get; set; } = string.Empty;
     public bool ExperimentalMode { get; set; }
     public TranslationSettings Translation { get; set; } = new();
+    public OverlaySettings Overlay { get; set; } = new();
 
     public static AppSettings Default => new();
 
@@ -57,6 +58,17 @@ public sealed class AppSettings
         });
         File.WriteAllText(path, json);
     }
+}
+
+public sealed class OverlaySettings
+{
+    public OverlayOrientation Orientation { get; set; } = OverlayOrientation.Right;
+}
+
+public enum OverlayOrientation
+{
+    Right,
+    Bottom
 }
 
 public sealed class TranslationSettings
