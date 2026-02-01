@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Interop;
@@ -160,10 +161,18 @@ public partial class TextOverlayWindow : Window
 
         await Dispatcher.InvokeAsync(() =>
         {
-            RenderPlainText(translated);
             if (app.Settings.ExperimentalMode)
             {
-                Editor.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 76, 217, 100));
+                var langName = TranslationLanguages.GetLanguages(includeAll: true, includeAuto: false)
+                    .FirstOrDefault(l => l.Code == app.Settings.Translation.TargetLanguage)?.Name
+                    ?? app.Settings.Translation.TargetLanguage;
+                var stamp = DateTime.Now.ToString("HH:mm:ss");
+                var header = string.Format(app.Localization["Overlay.TranslatedHeader"], langName, stamp);
+                RenderExperimentalTranslation(text, header, translated);
+            }
+            else
+            {
+                RenderPlainText(translated);
             }
         });
     }
@@ -247,6 +256,7 @@ public partial class TextOverlayWindow : Window
     {
         LayoutCanvas.Visibility = Visibility.Collapsed;
         LayoutCanvas.Children.Clear();
+        TranslationPanel.Visibility = Visibility.Collapsed;
 
         Editor.Visibility = Visibility.Visible;
         Editor.Text = text;
@@ -254,10 +264,24 @@ public partial class TextOverlayWindow : Window
         Editor.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 242, 242, 242));
     }
 
+    private void RenderExperimentalTranslation(string original, string header, string translated)
+    {
+        LayoutCanvas.Visibility = Visibility.Collapsed;
+        LayoutCanvas.Children.Clear();
+
+        Editor.Visibility = Visibility.Collapsed;
+        Editor.Text = string.Empty;
+
+        TranslationPanel.Visibility = Visibility.Visible;
+        OriginalTextBlock.Text = original;
+        TranslatedTextBlock.Text = header + Environment.NewLine + translated;
+    }
+
     private void RenderLayout(OcrLayoutResult layout)
     {
         Editor.Visibility = Visibility.Collapsed;
         Editor.Text = string.Empty;
+        TranslationPanel.Visibility = Visibility.Collapsed;
 
         LayoutCanvas.Visibility = Visibility.Visible;
         LayoutCanvas.Children.Clear();

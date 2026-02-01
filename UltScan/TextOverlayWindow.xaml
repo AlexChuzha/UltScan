@@ -28,6 +28,20 @@
                      IsReadOnly="True"
                      IsHitTestVisible="False"
                      Focusable="False"/>
+            <StackPanel x:Name="TranslationPanel"
+                        Visibility="Collapsed">
+                <TextBlock x:Name="OriginalTextBlock"
+                           FontSize="16"
+                           FontWeight="Bold"
+                           Foreground="#F2F2F2"
+                           TextWrapping="Wrap"/>
+                <TextBlock x:Name="TranslatedTextBlock"
+                           Margin="0,6,0,0"
+                           FontSize="16"
+                           FontWeight="Bold"
+                           Foreground="#4CD964"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
             <Canvas x:Name="LayoutCanvas"
                     IsHitTestVisible="False"
                     Visibility="Collapsed"/>

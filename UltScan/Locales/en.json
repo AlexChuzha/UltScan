@@ -55,5 +55,7 @@
     "HotKey.Preset.ctrl_only.Warning": "Warning: a single Ctrl is often captured by the system and apps; the hotkey may not work or can interfere with typing."
     ,
     "HotKey.Custom": "Custom"
+    ,
+    "Overlay.TranslatedHeader": "Translated to {0} • {1}"
   }
 }
