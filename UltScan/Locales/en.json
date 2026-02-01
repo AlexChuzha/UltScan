@@ -19,6 +19,7 @@
     "Settings.TranslationLanguagesHeader": "Translation languages",
     "Settings.TranslationConnectionHeader": "Google Translate connection",
     "Settings.TranslationEnabled": "Enable translation",
+    "Settings.TranslationBold": "Bold translated text",
     "Settings.TranslationSource": "Source language",
     "Settings.TranslationTarget": "Target language",
     "Settings.TranslationProvider": "Translation provider",
@@ -62,6 +63,13 @@
     ,
     "HotKey.Custom": "Custom"
     ,
-    "Overlay.TranslatedHeader": "Translation • {0}"
+    "Overlay.TranslatedHeader": "Translation • {0}",
+    "Overlay.Translating": "Translating…"
+    ,
+    "Welcome.Title": "Welcome",
+    "Welcome.Header": "Welcome to UltScan",
+    "Welcome.Body": "UltScan translates text from any part of your screen. Use the hotkey to select a region and the overlay will show the recognized text or translation.",
+    "Welcome.Action": "You will now open settings for the first time by clicking “Next”. You can always return to settings later.",
+    "Welcome.Next": "Next"
   }
 }

@@ -199,6 +199,7 @@ public partial class TextOverlayWindow : Window
         {
             _lastCandidate = normalized;
             _lastChangeUtc = DateTime.UtcNow;
+            ShowTranslationStatus(app);
             return;
         }
 
@@ -258,8 +259,10 @@ public partial class TextOverlayWindow : Window
             }
             else
             {
-                RenderPlainText(translated);
+                RenderPlainText(translated, isTranslated: true);
             }
+
+            HideTranslationStatus();
         });
     }
 
@@ -338,17 +341,19 @@ public partial class TextOverlayWindow : Window
         return d0[m];
     }
 
-    private void RenderPlainText(string text)
+    private void RenderPlainText(string text, bool isTranslated = false)
     {
         LayoutCanvas.Visibility = Visibility.Collapsed;
         LayoutCanvas.Children.Clear();
         TranslationPanel.Visibility = Visibility.Collapsed;
 
-        Editor.Visibility = Visibility.Visible;
+        EditorPanel.Visibility = Visibility.Visible;
         Editor.Text = text;
         Editor.CaretIndex = Editor.Text.Length;
         Editor.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 242, 242, 242));
+        Editor.FontWeight = GetTranslatedFontWeight(isTranslated);
         AdjustHeightToContent(Editor);
+        HideTranslationStatus();
     }
 
     private void RenderExperimentalTranslation(string original, string header, string translated)
@@ -358,11 +363,13 @@ public partial class TextOverlayWindow : Window
 
         Editor.Visibility = Visibility.Collapsed;
         Editor.Text = string.Empty;
+        EditorPanel.Visibility = Visibility.Collapsed;
 
         TranslationPanel.Visibility = Visibility.Visible;
         OriginalTextBlock.Text = original;
         TranslationHeaderTextBlock.Text = header;
         TranslatedTextBlock.Text = translated;
+        TranslatedTextBlock.FontWeight = GetTranslatedFontWeight(isTranslated: true);
         AdjustHeightToContent(TranslationPanel);
     }
 
@@ -380,7 +387,43 @@ public partial class TextOverlayWindow : Window
             : name + Environment.NewLine + speech;
         TranslationHeaderTextBlock.Text = header;
         TranslatedTextBlock.Text = translatedText;
+        TranslatedTextBlock.FontWeight = GetTranslatedFontWeight(isTranslated: true);
         AdjustHeightToContent(TranslationPanel);
+    }
+
+    private void ShowTranslationStatus(App app)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            var label = app.Localization["Overlay.Translating"];
+            if (TranslationPanel.Visibility == Visibility.Visible)
+            {
+                TranslationStatusTextBlock.Text = label;
+                TranslationStatusTextBlock.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                EditorStatusTextBlock.Text = label;
+                EditorStatusTextBlock.Visibility = Visibility.Visible;
+            }
+        });
+    }
+
+    private void HideTranslationStatus()
+    {
+        TranslationStatusTextBlock.Visibility = Visibility.Collapsed;
+        EditorStatusTextBlock.Visibility = Visibility.Collapsed;
+    }
+
+    private FontWeight GetTranslatedFontWeight(bool isTranslated)
+    {
+        if (!isTranslated)
+        {
+            return FontWeights.Normal;
+        }
+
+        var app = (App)System.Windows.Application.Current;
+        return app.Settings.Translation.TranslatedBold ? FontWeights.Bold : FontWeights.Normal;
     }
 
     private (string name, string speech)? TrySplitNameAndSpeech(IReadOnlyList<OcrLineLayout> lines)
@@ -423,6 +466,7 @@ public partial class TextOverlayWindow : Window
         Editor.Visibility = Visibility.Collapsed;
         Editor.Text = string.Empty;
         TranslationPanel.Visibility = Visibility.Collapsed;
+        EditorPanel.Visibility = Visibility.Collapsed;
 
         LayoutCanvas.Visibility = Visibility.Visible;
         LayoutCanvas.Children.Clear();

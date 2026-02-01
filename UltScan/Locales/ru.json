@@ -19,6 +19,7 @@
     "Settings.TranslationLanguagesHeader": "Языки перевода",
     "Settings.TranslationConnectionHeader": "Подключение Google Translate",
     "Settings.TranslationEnabled": "Включить перевод",
+    "Settings.TranslationBold": "Жирный переведенный текст",
     "Settings.TranslationSource": "Язык источника",
     "Settings.TranslationTarget": "Язык перевода",
     "Settings.TranslationProvider": "Провайдер перевода",
@@ -62,6 +63,13 @@
     ,
     "HotKey.Custom": "Своя комбинация"
     ,
-    "Overlay.TranslatedHeader": "Перевод • {0}"
+    "Overlay.TranslatedHeader": "Перевод • {0}",
+    "Overlay.Translating": "Перевожу…"
+    ,
+    "Welcome.Title": "Добро пожаловать",
+    "Welcome.Header": "Добро пожаловать в UltScan",
+    "Welcome.Body": "UltScan переводит текст с любой области экрана. Нажмите комбинацию горячих клавиш, выделите область — программа распознает и переведет текст, расположенный в этой области.",
+    "Welcome.Action": "Сейчас вы в первый раз перейдете к настройкам программы, нажав кнопку «Далее». Вы всегда можете вернуться к настройкам позже.",
+    "Welcome.Next": "Далее"
   }
 }

@@ -87,10 +87,15 @@
                                    FontWeight="SemiBold"/>
                     </GroupBox.Header>
                     <StackPanel Margin="8">
-                        <CheckBox x:Name="TranslationEnabledCheckBox"
-                                  Content="Translation"
-                                  Checked="TranslationEnabled_Changed"
-                                  Unchecked="TranslationEnabled_Changed"/>
+                <CheckBox x:Name="TranslationEnabledCheckBox"
+                          Content="Translation"
+                          Checked="TranslationEnabled_Changed"
+                          Unchecked="TranslationEnabled_Changed"/>
+                <CheckBox x:Name="TranslationBoldCheckBox"
+                          Margin="0,6,0,0"
+                          Content="Bold translation"
+                          Checked="TranslationBold_Changed"
+                          Unchecked="TranslationBold_Changed"/>
 
                         <TextBlock x:Name="TranslationSourceLabel"
                                    Margin="0,8,0,4"

@@ -110,6 +110,17 @@ public partial class SettingsWindow : Window
         UpdateTranslationWarnings();
     }
 
+    private void TranslationBold_Changed(object sender, RoutedEventArgs e)
+    {
+        if (TranslationBoldCheckBox.IsChecked == null)
+        {
+            return;
+        }
+
+        _app.Settings.Translation.TranslatedBold = TranslationBoldCheckBox.IsChecked.Value;
+        _app.Settings.Save();
+    }
+
     private void TranslationSource_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_suppressTranslationChange)
@@ -225,6 +236,7 @@ public partial class SettingsWindow : Window
         SaveButton.Content = _loc["Settings.Save"];
         CancelButton.Content = _loc["Settings.Cancel"];
         TranslationEnabledCheckBox.Content = _loc["Settings.TranslationEnabled"];
+        TranslationBoldCheckBox.Content = _loc["Settings.TranslationBold"];
         TranslationSourceLabel.Text = _loc["Settings.TranslationSource"];
         TranslationTargetLabel.Text = _loc["Settings.TranslationTarget"];
         TranslationProjectLabel.Text = _loc["Settings.TranslationProject"];
@@ -249,6 +261,7 @@ public partial class SettingsWindow : Window
 
         ExperimentalModeCheckBox.IsChecked = _app.Settings.ExperimentalMode;
         TranslationEnabledCheckBox.IsChecked = _app.Settings.Translation.Enabled;
+        TranslationBoldCheckBox.IsChecked = _app.Settings.Translation.TranslatedBold;
         TranslationProjectTextBox.Text = _app.Settings.Translation.ProjectId;
         TranslationApiKeyTextBox.Text = _app.Settings.Translation.ApiKey;
         UpdateExperimentalWarning();

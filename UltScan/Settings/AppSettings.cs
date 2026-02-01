@@ -76,6 +76,7 @@ public enum OverlayOrientation
 public sealed class TranslationSettings
 {
     public bool Enabled { get; set; } = true;
+    public bool TranslatedBold { get; set; }
     public string SourceLanguage { get; set; } = "auto";
     public string TargetLanguage { get; set; } = string.Empty;
     public int StabilizationMs { get; set; } = 700;

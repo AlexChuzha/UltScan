@@ -33,6 +33,7 @@ namespace UltScan
         {
             base.OnStartup(e);
 
+            var isFirstRun = !File.Exists(AppSettings.SettingsPath);
             Settings = AppSettings.Load();
             Localization = LocalizationService.LoadFromDisk();
             InitializeLocale();
@@ -42,6 +43,22 @@ namespace UltScan
 
             CreateMessageWindowForHotKeys();
             RegisterGlobalHotKey();
+
+            if (isFirstRun)
+            {
+                ShowWelcomeWindow();
+            }
+        }
+
+        public void ShowSettingsWindowFromWelcome()
+        {
+            ShowSettingsWindow();
+        }
+
+        private void ShowWelcomeWindow()
+        {
+            var welcome = new WelcomeWindow();
+            welcome.ShowDialog();
         }
 
         private void InitializeLocale()
