@@ -7,7 +7,33 @@
         Topmost="True"
         AllowsTransparency="True"
         Background="Transparent">
-    <Border BorderBrush="#99FFFFFF"
-            BorderThickness="2"
-            Background="Transparent"/>
+    <Grid>
+        <Border x:Name="OuterBorder"
+                BorderBrush="#AA000000"
+                BorderThickness="2"
+                Background="Transparent">
+            <Border x:Name="InnerBorder"
+                    BorderBrush="#CCFFFFFF"
+                    BorderThickness="2"
+                    Margin="1"
+                    Background="Transparent"/>
+        </Border>
+        <Thumb x:Name="ResizeThumb"
+               Width="16"
+               Height="16"
+               HorizontalAlignment="Right"
+               VerticalAlignment="Bottom"
+               Margin="0,0,2,2"
+               Visibility="Collapsed"
+               DragDelta="ResizeThumb_DragDelta">
+            <Thumb.Template>
+                <ControlTemplate TargetType="Thumb">
+                    <Border Background="#66FFFFFF"
+                            BorderBrush="#88000000"
+                            BorderThickness="1"
+                            CornerRadius="3"/>
+                </ControlTemplate>
+            </Thumb.Template>
+        </Thumb>
+    </Grid>
 </Window>

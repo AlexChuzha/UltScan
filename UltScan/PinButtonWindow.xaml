@@ -9,13 +9,13 @@
         Background="Transparent"
         Width="28"
         Height="28">
-    <Button x:Name="CloseButton"
-            FontSize="14"
-            Background="Transparent"
-            BorderThickness="0"
-            Click="CloseButton_Click"
-            MouseEnter="CloseButton_MouseEnter"
-            MouseLeave="CloseButton_MouseLeave">
+        <Button x:Name="CloseButton"
+                FontSize="14"
+                Background="Transparent"
+                BorderThickness="0"
+                Click="CloseButton_Click"
+                MouseEnter="CloseButton_MouseEnter"
+                MouseLeave="CloseButton_MouseLeave">
         <Button.Style>
             <Style TargetType="Button">
                 <Setter Property="Foreground" Value="#222"/>

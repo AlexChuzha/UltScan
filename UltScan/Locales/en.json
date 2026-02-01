@@ -32,6 +32,7 @@
     "Settings.LanguagesLess": "Less languages",
     "Settings.ExperimentalMode": "Experimental mode",
     "Settings.ExperimentalHeader": "Experimental",
+    "Settings.OpenWelcome": "Open welcome & demo",
     "Settings.OverlayHeader": "Overlay",
     "Settings.OverlayOrientation": "Output orientation",
     "Settings.OverlayRight": "Output on the right",
@@ -57,19 +58,27 @@
     "HotKey.Preset.ctrl_alt_z.Hint": "Rarely used, but less comfortable with one hand.",
     "HotKey.Preset.win_alt_z.Label": "Win + Alt + Z",
     "HotKey.Preset.win_alt_z.Hint": "Common in games/overlays (NVIDIA), potential conflicts.",
-    "HotKey.Preset.ctrl_only.Label": "Ctrl",
-    "HotKey.Preset.ctrl_only.Hint": "Fastest, but the riskiest option.",
-    "HotKey.Preset.ctrl_only.Warning": "Warning: a single Ctrl is often captured by the system and apps; the hotkey may not work or can interfere with typing."
+    "HotKey.Preset.shift_only.Label": "Shift",
+    "HotKey.Preset.shift_only.Hint": "Fastest, but can conflict with normal typing.",
+    "HotKey.Preset.shift_only.Warning": "Warning: a single Shift is often captured by the system and apps; the hotkey may not work or can interfere with typing."
     ,
     "HotKey.Custom": "Custom"
     ,
     "Overlay.TranslatedHeader": "Translation • {0}",
     "Overlay.Translating": "Translating…"
     ,
+    "Overlay.CloseTooltip": "Close overlay"
+    ,
     "Welcome.Title": "Welcome",
     "Welcome.Header": "Welcome to UltScan",
     "Welcome.Body": "UltScan translates text from any part of your screen. Use the hotkey to select a region and the overlay will show the recognized text or translation.",
-    "Welcome.Action": "You will now open settings for the first time by clicking “Next”. You can always return to settings later.",
+    "Welcome.Action": "Click “Next” to open a demo window where you can try the translation.",
     "Welcome.Next": "Next"
+    ,
+    "Demo.Title": "Try it now",
+    "Demo.Header": "Try the translation now",
+    "Demo.Subtitle": "You will now test the app on a sample text.",
+    "Demo.Hint": "Press {0} and select the text inside the frame.",
+    "Demo.Next": "Next → Settings"
   }
 }

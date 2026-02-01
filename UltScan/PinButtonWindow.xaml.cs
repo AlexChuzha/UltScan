@@ -9,6 +9,8 @@ public partial class PinButtonWindow : Window
 {
     private readonly Action _onClose;
     private readonly Action<bool> _onHoverChanged;
+    private Rect? _avoidRect;
+    private Rect _anchorRect;
 
     public PinButtonWindow(Rect anchorRect, Action onClose, Action<bool> onHoverChanged, Rect? avoidRect)
     {
@@ -16,6 +18,19 @@ public partial class PinButtonWindow : Window
 
         _onClose = onClose;
         _onHoverChanged = onHoverChanged;
+        _anchorRect = anchorRect;
+        _avoidRect = avoidRect;
+
+        var app = (App)System.Windows.Application.Current;
+        CloseButton.ToolTip = app.Localization["Overlay.CloseTooltip"];
+
+        UpdatePosition(anchorRect, avoidRect);
+    }
+
+    public void UpdatePosition(Rect anchorRect, Rect? avoidRect)
+    {
+        _anchorRect = anchorRect;
+        _avoidRect = avoidRect;
 
         var screen = Forms.Screen.FromRectangle(new Rectangle(
             (int)anchorRect.X,
@@ -34,15 +49,12 @@ public partial class PinButtonWindow : Window
             new System.Windows.Point(anchorRect.Right - Width - 6, anchorRect.Bottom + 6)        // below-right (outside)
         };
 
-        var chosen = FindCandidate(candidates, bounds, anchorRect, avoidRect, requireAvoidOutput: true)
-                     ?? FindCandidate(candidates, bounds, anchorRect, avoidRect, requireAvoidOutput: false)
-                     ?? ClampCandidate(candidates[0], bounds);
+        var chosen = FindCandidate(candidates, bounds, anchorRect, avoidRect, Width, Height, requireAvoidOutput: true)
+                     ?? FindCandidate(candidates, bounds, anchorRect, avoidRect, Width, Height, requireAvoidOutput: false)
+                     ?? ClampCandidate(candidates[0], bounds, Width, Height);
 
-        var left = chosen.X;
-        var top = chosen.Y;
-
-        Left = left;
-        Top = top;
+        Left = chosen.X;
+        Top = chosen.Y;
     }
 
     private static System.Windows.Point? FindCandidate(
@@ -50,17 +62,19 @@ public partial class PinButtonWindow : Window
         Rectangle bounds,
         Rect captureRect,
         Rect? avoidRect,
+        double width,
+        double height,
         bool requireAvoidOutput)
     {
         foreach (var pt in candidates)
         {
             if (pt.X < bounds.Left || pt.Y < bounds.Top ||
-                pt.X + 28 > bounds.Right || pt.Y + 28 > bounds.Bottom)
+                pt.X + width > bounds.Right || pt.Y + height > bounds.Bottom)
             {
                 continue;
             }
 
-            var rect = new System.Windows.Rect(pt.X, pt.Y, 28, 28);
+            var rect = new System.Windows.Rect(pt.X, pt.Y, width, height);
             if (rect.IntersectsWith(captureRect))
             {
                 continue;
@@ -77,10 +91,10 @@ public partial class PinButtonWindow : Window
         return null;
     }
 
-    private static System.Windows.Point ClampCandidate(System.Windows.Point candidate, Rectangle bounds)
+    private static System.Windows.Point ClampCandidate(System.Windows.Point candidate, Rectangle bounds, double width, double height)
     {
-        var clampedX = Math.Max(bounds.Left, Math.Min(candidate.X, bounds.Right - 28));
-        var clampedY = Math.Max(bounds.Top, Math.Min(candidate.Y, bounds.Bottom - 28));
+        var clampedX = Math.Max(bounds.Left, Math.Min(candidate.X, bounds.Right - width));
+        var clampedY = Math.Max(bounds.Top, Math.Min(candidate.Y, bounds.Bottom - height));
         return new System.Windows.Point(clampedX, clampedY);
     }
 

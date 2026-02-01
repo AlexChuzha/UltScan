@@ -32,6 +32,7 @@
     "Settings.LanguagesLess": "Меньше языков",
     "Settings.ExperimentalMode": "Экспериментальный режим",
     "Settings.ExperimentalHeader": "Экспериментальные функции",
+    "Settings.OpenWelcome": "Открыть приветствие и демо",
     "Settings.OverlayHeader": "Оверлей",
     "Settings.OverlayOrientation": "Ориентация вывода",
     "Settings.OverlayRight": "Вывод справа",
@@ -57,19 +58,27 @@
     "HotKey.Preset.ctrl_alt_z.Hint": "Редко занята, но менее удобна одной рукой.",
     "HotKey.Preset.win_alt_z.Label": "Win + Alt + Z",
     "HotKey.Preset.win_alt_z.Hint": "Популярно в играх/оверлеях (NVIDIA), возможны конфликты.",
-    "HotKey.Preset.ctrl_only.Label": "Ctrl",
-    "HotKey.Preset.ctrl_only.Hint": "Самый быстрый, но и самый рискованный вариант.",
-    "HotKey.Preset.ctrl_only.Warning": "Внимание: одиночный Ctrl часто перехватывается системой и приложениями; возможно, хоткей не сработает или будет мешать набору текста."
+    "HotKey.Preset.shift_only.Label": "Shift",
+    "HotKey.Preset.shift_only.Hint": "Самый быстрый, но может мешать обычному вводу.",
+    "HotKey.Preset.shift_only.Warning": "Внимание: одиночный Shift часто перехватывается системой и приложениями; возможно, хоткей не сработает или будет мешать набору текста."
     ,
     "HotKey.Custom": "Своя комбинация"
     ,
     "Overlay.TranslatedHeader": "Перевод • {0}",
     "Overlay.Translating": "Перевожу…"
     ,
+    "Overlay.CloseTooltip": "Закрыть оверлей"
+    ,
     "Welcome.Title": "Добро пожаловать",
     "Welcome.Header": "Добро пожаловать в UltScan",
     "Welcome.Body": "UltScan переводит текст с любой области экрана. Нажмите комбинацию горячих клавиш, выделите область — программа распознает и переведет текст, расположенный в этой области.",
-    "Welcome.Action": "Сейчас вы в первый раз перейдете к настройкам программы, нажав кнопку «Далее». Вы всегда можете вернуться к настройкам позже.",
+    "Welcome.Action": "Нажмите «Далее», чтобы открыть окно демо и попробовать перевод.",
     "Welcome.Next": "Далее"
+    ,
+    "Demo.Title": "Попробуйте сейчас",
+    "Demo.Header": "Попробуйте перевод сейчас",
+    "Demo.Subtitle": "Сейчас вы протестируете работу программы на примере.",
+    "Demo.Hint": "Нажмите {0} и выделите текст в рамке.",
+    "Demo.Next": "Далее → Настройки"
   }
 }

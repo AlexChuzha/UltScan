@@ -1,0 +1,65 @@
+<Window x:Class="UltScan.OnboardingDemoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Demo"
+        Width="720"
+        Height="480"
+        WindowStartupLocation="CenterScreen">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="DemoTitle"
+                   FontSize="18"
+                   FontWeight="SemiBold"/>
+
+        <TextBlock x:Name="DemoSubtitle"
+                   Grid.Row="1"
+                   Margin="0,6,0,0"
+                   TextWrapping="Wrap"
+                   Foreground="#444"/>
+
+        <TextBlock x:Name="DemoHint"
+                   Grid.Row="2"
+                   Margin="0,12,0,0"
+                   TextWrapping="Wrap"
+                   Foreground="#333"/>
+
+        <Grid Grid.Row="3">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="1"
+                        HorizontalAlignment="Center"
+                        Width="520">
+                <Border BorderBrush="#B0B0B0"
+                        BorderThickness="2"
+                        CornerRadius="8"
+                        Background="#F5F5F5"
+                        Padding="12">
+                    <TextBlock x:Name="DemoSampleText"
+                               TextWrapping="Wrap"
+                               Foreground="#222"
+                               TextAlignment="Center"/>
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Grid.Row="4"
+                    Margin="0,16,0,0"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button x:Name="DemoNextButton"
+                    Width="160"
+                    Click="Next_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

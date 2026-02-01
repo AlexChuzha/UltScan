@@ -55,6 +55,12 @@ namespace UltScan
             ShowSettingsWindow();
         }
 
+        public void ShowDemoWindowFromWelcome()
+        {
+            var demo = new OnboardingDemoWindow();
+            demo.ShowDialog();
+        }
+
         private void ShowWelcomeWindow()
         {
             var welcome = new WelcomeWindow();
@@ -200,6 +206,7 @@ namespace UltScan
             UpdateTrayMenuText();
             _captureOverlayWindow = new CaptureOverlayWindow(rect);
             _captureOverlayWindow.Closed += (_, __) => _captureOverlayWindow = null;
+            _captureOverlayWindow.RectChanged += (_, newRect) => UpdateOverlayRect(newRect);
             _captureOverlayWindow.Show();
 
             _overlayWindow = new TextOverlayWindow(rect);
@@ -213,6 +220,16 @@ namespace UltScan
             _pinWindow.Closed += (_, __) => _pinWindow = null;
             _pinWindow.Show();
             UpdateTrayMenuText();
+        }
+
+        private void UpdateOverlayRect(Rect rect)
+        {
+            _lastCaptureRect = rect;
+            _overlayWindow?.UpdateCaptureRect(rect);
+            var outputRect = _overlayWindow != null
+                ? new Rect(_overlayWindow.Left, _overlayWindow.Top, _overlayWindow.Width, _overlayWindow.Height)
+                : (Rect?)null;
+            _pinWindow?.UpdatePosition(rect, outputRect);
         }
 
         private void SetOverlayHighlight(bool isHighlighted)

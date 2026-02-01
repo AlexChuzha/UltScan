@@ -233,6 +233,7 @@ public partial class SettingsWindow : Window
         HotkeysLabel.Text = _loc["Settings.HotkeysLabel"];
         ExperimentalModeCheckBox.Content = _loc["Settings.ExperimentalMode"];
         ExperimentalWarningText.Text = _loc["Settings.ExperimentalWarning"];
+        OpenWelcomeButton.Content = _loc["Settings.OpenWelcome"];
         SaveButton.Content = _loc["Settings.Save"];
         CancelButton.Content = _loc["Settings.Cancel"];
         TranslationEnabledCheckBox.Content = _loc["Settings.TranslationEnabled"];
@@ -351,6 +352,13 @@ public partial class SettingsWindow : Window
             ?? OverlayOrientationCombo.ItemsSource.Cast<OverlayOption>().FirstOrDefault();
 
         _suppressTranslationChange = false;
+    }
+
+    private void OpenWelcome_Click(object sender, RoutedEventArgs e)
+    {
+        var app = (App)System.Windows.Application.Current;
+        var welcome = new WelcomeWindow();
+        welcome.ShowDialog();
     }
 
     private void UpdateTranslationApiFields()

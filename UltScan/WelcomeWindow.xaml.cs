@@ -20,6 +20,6 @@ public partial class WelcomeWindow : Window
     {
         Close();
         var app = (App)System.Windows.Application.Current;
-        app.ShowSettingsWindowFromWelcome();
+        app.ShowDemoWindowFromWelcome();
     }
 }

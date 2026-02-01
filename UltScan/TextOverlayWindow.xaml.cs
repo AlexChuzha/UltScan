@@ -12,7 +12,7 @@ namespace UltScan;
 
 public partial class TextOverlayWindow : Window
 {
-    private readonly Rect _captureRect;
+    private Rect _captureRect;
     private System.Windows.Media.Brush _defaultBackground = System.Windows.Media.Brushes.Transparent;
     private System.Windows.Media.Brush _defaultBorderBrush = System.Windows.Media.Brushes.Transparent;
     private Thickness _defaultBorderThickness = new(0);
@@ -266,6 +266,12 @@ public partial class TextOverlayWindow : Window
         });
     }
 
+    public void UpdateCaptureRect(Rect rect)
+    {
+        _captureRect = rect;
+        ConfigureLayout();
+    }
+
     private static string NormalizeForCompare(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -352,7 +358,7 @@ public partial class TextOverlayWindow : Window
         Editor.CaretIndex = Editor.Text.Length;
         Editor.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 242, 242, 242));
         Editor.FontWeight = GetTranslatedFontWeight(isTranslated);
-        AdjustHeightToContent(Editor);
+        AdjustHeightToContent(EditorPanel);
         HideTranslationStatus();
     }
 

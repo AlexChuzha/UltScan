@@ -178,6 +178,12 @@
                                    TextWrapping="Wrap"
                                    Foreground="#B00020"
                                    Visibility="Collapsed"/>
+
+                        <Button x:Name="OpenWelcomeButton"
+                                Margin="0,12,0,0"
+                                Width="220"
+                                HorizontalAlignment="Left"
+                                Click="OpenWelcome_Click"/>
                     </StackPanel>
                 </GroupBox>
             </StackPanel>

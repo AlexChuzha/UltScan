@@ -45,14 +45,14 @@ public static class HotKeyPresets
     private const uint VkS = 0x53;
     private const uint VkT = 0x54;
     private const uint VkO = 0x4F;
-    private const uint VkControl = 0x11;
+    private const uint VkShift = 0x10;
 
     private static readonly ModifierKeys WinShift = ModifierKeys.Win | ModifierKeys.Shift | ModifierKeys.NoRepeat;
     private static readonly ModifierKeys AltShift = ModifierKeys.Alt | ModifierKeys.Shift | ModifierKeys.NoRepeat;
     private static readonly ModifierKeys CtrlShift = ModifierKeys.Control | ModifierKeys.Shift | ModifierKeys.NoRepeat;
     private static readonly ModifierKeys CtrlAlt = ModifierKeys.Control | ModifierKeys.Alt | ModifierKeys.NoRepeat;
     private static readonly ModifierKeys WinAlt = ModifierKeys.Win | ModifierKeys.Alt | ModifierKeys.NoRepeat;
-    private static readonly ModifierKeys CtrlOnly = ModifierKeys.Control | ModifierKeys.NoRepeat;
+    private static readonly ModifierKeys ShiftOnly = ModifierKeys.Shift | ModifierKeys.NoRepeat;
 
     public static readonly HotKeyPreset Default = new(
         "win_shift_z",
@@ -107,12 +107,12 @@ public static class HotKeyPresets
             WinAlt,
             VkZ),
         new HotKeyPreset(
-            "ctrl_only",
-            "HotKey.Preset.ctrl_only.Label",
-            "HotKey.Preset.ctrl_only.Hint",
-            CtrlOnly,
-            VkControl,
-            "HotKey.Preset.ctrl_only.Warning")
+            "shift_only",
+            "HotKey.Preset.shift_only.Label",
+            "HotKey.Preset.shift_only.Hint",
+            ShiftOnly,
+            VkShift,
+            "HotKey.Preset.shift_only.Warning")
     };
 
     public static HotKeyPreset? FindById(string? id)
