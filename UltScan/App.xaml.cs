@@ -193,6 +193,7 @@ namespace UltScan
                 Visible = true,
                 Icon = LoadTrayIcon()
             };
+            _notifyIcon.DoubleClick += (_, __) => ShowSettingsWindow();
 
             var menu = new Forms.ContextMenuStrip();
 
@@ -213,6 +214,7 @@ namespace UltScan
             };
 
             _settingsItem = new Forms.ToolStripMenuItem(Localization["App.Tray.Settings"]);
+            _settingsItem.Font = new System.Drawing.Font(_settingsItem.Font, System.Drawing.FontStyle.Bold);
             _settingsItem.Click += (_, __) => ShowSettingsWindow();
 
             _exitItem = new Forms.ToolStripMenuItem(Localization["App.Tray.Exit"]);
