@@ -14,7 +14,7 @@
             CornerRadius="10"
             BorderBrush="Transparent"
             BorderThickness="0"
-            Padding="10">
+            Padding="4,3,8,8">
         <Grid>
             <TextBox x:Name="Editor"
                      FontSize="16"
