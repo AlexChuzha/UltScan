@@ -20,9 +20,10 @@
                    StrokeThickness="2"
                    Fill="#22FFFFFF" />
         <!-- (опционально) подсказка -->
-        <TextBlock Canvas.Left="20" Canvas.Top="20"
+        <TextBlock x:Name="HintText"
+                   Canvas.Left="20" Canvas.Top="20"
                    Foreground="White"
                    FontSize="16"
-                   Text="UltScan: выделите область мышью. Esc — отмена."/>
+                   Text=""/>
     </Canvas>
 </Window>

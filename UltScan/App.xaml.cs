@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Drawing;
 using System.IO;
 using System.Windows;
@@ -19,17 +20,35 @@ namespace UltScan
 
         public AppSettings Settings { get; private set; } = AppSettings.Default;
         public IReadOnlyList<HotKeyPreset> HotKeyPresetList => HotKeyPresets.All;
+        public LocalizationService Localization { get; private set; } = new();
 
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
 
             Settings = AppSettings.Load();
+            Localization = LocalizationService.LoadFromDisk();
+            InitializeLocale();
 
             CreateTrayIcon();
 
             CreateMessageWindowForHotKeys();
             RegisterGlobalHotKey();
+        }
+
+        private void InitializeLocale()
+        {
+            var localeId = Settings.LocaleId;
+            if (string.IsNullOrWhiteSpace(localeId))
+            {
+                var osLocale = CultureInfo.CurrentUICulture.Name;
+                localeId = Localization.GetBestLocaleId(osLocale);
+                Settings.LocaleId = localeId;
+                Settings.Save();
+            }
+
+            Localization.SetLocale(localeId);
+            Localization.LocaleChanged += (_, __) => UpdateLocalizedUi();
         }
 
         private void CreateMessageWindowForHotKeys()
@@ -94,9 +113,13 @@ namespace UltScan
             {
                 if (showError)
                 {
+                    var message = string.Format(
+                        Localization["Message.HotKeyRegisterFail"],
+                        ex.Message);
+
                     System.Windows.MessageBox.Show(
-                        $"Не удалось зарегистрировать хоткей. Возможно, он занят другим приложением.\n\n{ex.Message}",
-                        "UltScan",
+                        message,
+                        Localization["Message.Title"],
                         MessageBoxButton.OK,
                         MessageBoxImage.Warning);
                 }
@@ -148,10 +171,10 @@ namespace UltScan
 
             var menu = new Forms.ContextMenuStrip();
 
-            var settingsItem = new Forms.ToolStripMenuItem("Настройки");
+            var settingsItem = new Forms.ToolStripMenuItem(Localization["App.Tray.Settings"]);
             settingsItem.Click += (_, __) => ShowSettingsWindow();
 
-            var exitItem = new Forms.ToolStripMenuItem("Выход");
+            var exitItem = new Forms.ToolStripMenuItem(Localization["App.Tray.Exit"]);
             exitItem.Click += (_, __) => ExitApplication();
 
             menu.Items.Add(settingsItem);
@@ -159,6 +182,22 @@ namespace UltScan
             menu.Items.Add(exitItem);
 
             _notifyIcon.ContextMenuStrip = menu;
+        }
+
+        private void UpdateLocalizedUi()
+        {
+            if (_notifyIcon?.ContextMenuStrip != null)
+            {
+                var items = _notifyIcon.ContextMenuStrip.Items;
+                if (items.Count >= 3)
+                {
+                    items[0].Text = Localization["App.Tray.Settings"];
+                    items[2].Text = Localization["App.Tray.Exit"];
+                }
+            }
+
+            _settingsWindow?.RefreshLocalization();
+            _mainWindow?.RefreshLocalization();
         }
 
         private Icon LoadTrayIcon()

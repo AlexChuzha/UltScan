@@ -7,6 +7,7 @@ namespace UltScan;
 public sealed class AppSettings
 {
     public HotKeyConfig HotKey { get; set; } = HotKeyPresets.Default.ToConfig();
+    public string LocaleId { get; set; } = string.Empty;
 
     public static AppSettings Default => new();
 

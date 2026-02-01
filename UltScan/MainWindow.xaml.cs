@@ -25,6 +25,14 @@ public partial class MainWindow : Window
 
         // Чтобы окно не появлялось само по себе при создании
         Hide();
+
+        RefreshLocalization();
+    }
+
+    public void RefreshLocalization()
+    {
+        var app = (App)System.Windows.Application.Current;
+        HintText.Text = app.Localization["Main.CaptureHint"];
     }
 
     public void StartCaptureMode()

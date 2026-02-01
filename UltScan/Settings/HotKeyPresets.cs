@@ -5,20 +5,26 @@ namespace UltScan;
 
 public sealed class HotKeyPreset
 {
-    public HotKeyPreset(string id, string displayName, string hint, ModifierKeys modifiers, uint virtualKey, string? warning = null)
+    public HotKeyPreset(
+        string id,
+        string labelKey,
+        string hintKey,
+        ModifierKeys modifiers,
+        uint virtualKey,
+        string? warningKey = null)
     {
         Id = id;
-        DisplayName = displayName;
-        Hint = hint;
+        LabelKey = labelKey;
+        HintKey = hintKey;
         Modifiers = modifiers;
         VirtualKey = virtualKey;
-        Warning = warning;
+        WarningKey = warningKey;
     }
 
     public string Id { get; }
-    public string DisplayName { get; }
-    public string Hint { get; }
-    public string? Warning { get; }
+    public string LabelKey { get; }
+    public string HintKey { get; }
+    public string? WarningKey { get; }
     public ModifierKeys Modifiers { get; }
     public uint VirtualKey { get; }
 
@@ -50,8 +56,8 @@ public static class HotKeyPresets
 
     public static readonly HotKeyPreset Default = new(
         "win_shift_z",
-        "Win + Shift + Z",
-        "Быстрое выделение области. Нейтральный вариант с умеренной частотой конфликтов.",
+        "HotKey.Preset.win_shift_z.Label",
+        "HotKey.Preset.win_shift_z.Hint",
         WinShift,
         VkZ);
 
@@ -60,53 +66,53 @@ public static class HotKeyPresets
         Default,
         new HotKeyPreset(
             "win_shift_s",
-            "Win + Shift + S",
-            "Привычно для пользователей Windows (скриншот), но может конфликтовать со Snipping Tool.",
+            "HotKey.Preset.win_shift_s.Label",
+            "HotKey.Preset.win_shift_s.Hint",
             WinShift,
             VkS),
         new HotKeyPreset(
             "win_shift_t",
-            "Win + Shift + T",
-            "Ассоциация с Text. Часто свободно.",
+            "HotKey.Preset.win_shift_t.Label",
+            "HotKey.Preset.win_shift_t.Hint",
             WinShift,
             VkT),
         new HotKeyPreset(
             "win_shift_o",
-            "Win + Shift + O",
-            "Ассоциация с Overlay. Обычно свободно.",
+            "HotKey.Preset.win_shift_o.Label",
+            "HotKey.Preset.win_shift_o.Hint",
             WinShift,
             VkO),
         new HotKeyPreset(
             "alt_shift_z",
-            "Alt + Shift + Z",
-            "Удобно для левой руки, но Alt+Shift часто занято переключением раскладки.",
+            "HotKey.Preset.alt_shift_z.Label",
+            "HotKey.Preset.alt_shift_z.Hint",
             AltShift,
             VkZ),
         new HotKeyPreset(
             "ctrl_shift_z",
-            "Ctrl + Shift + Z",
-            "Привычная связка, но часто занята в редакторах.",
+            "HotKey.Preset.ctrl_shift_z.Label",
+            "HotKey.Preset.ctrl_shift_z.Hint",
             CtrlShift,
             VkZ),
         new HotKeyPreset(
             "ctrl_alt_z",
-            "Ctrl + Alt + Z",
-            "Редко занята, но менее удобна одной рукой.",
+            "HotKey.Preset.ctrl_alt_z.Label",
+            "HotKey.Preset.ctrl_alt_z.Hint",
             CtrlAlt,
             VkZ),
         new HotKeyPreset(
             "win_alt_z",
-            "Win + Alt + Z",
-            "Популярно в играх/оверлеях (NVIDIA), возможны конфликты.",
+            "HotKey.Preset.win_alt_z.Label",
+            "HotKey.Preset.win_alt_z.Hint",
             WinAlt,
             VkZ),
         new HotKeyPreset(
             "ctrl_only",
-            "Ctrl",
-            "Самый быстрый, но и самый рискованный вариант.",
+            "HotKey.Preset.ctrl_only.Label",
+            "HotKey.Preset.ctrl_only.Hint",
             CtrlOnly,
             VkControl,
-            "Внимание: одиночный Ctrl часто перехватывается системой и приложениями; возможно, хоткей не сработает или будет мешать набору текста.")
+            "HotKey.Preset.ctrl_only.Warning")
     };
 
     public static HotKeyPreset? FindById(string? id)
