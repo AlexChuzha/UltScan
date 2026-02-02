@@ -10,6 +10,10 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VELOPACK_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -42,13 +46,9 @@ jobs:
 
       - name: Download previous releases (for delta packages)
         run: vpk download github --repoUrl https://github.com/AlexChuzha/UltScan
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pack
         run: vpk pack --packId AlexChuzha.UltScan --packVersion ${{ steps.version.outputs.pack_version }} --packDir .\artifacts\publish --mainExe UltScan.exe
 
       - name: Upload to GitHub Release
         run: vpk upload github --repoUrl https://github.com/AlexChuzha/UltScan --publish --releaseName "UltScan ${{ steps.version.outputs.version }}" --tag ${{ github.event.release.tag_name || format('v{0}', steps.version.outputs.version) }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
