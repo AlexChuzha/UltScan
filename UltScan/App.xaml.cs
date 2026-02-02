@@ -38,6 +38,7 @@ namespace UltScan
             Localization = LocalizationService.LoadFromDisk();
             InitializeLocale();
             InitializeTranslationSettings();
+            ApplyAutoStartSetting();
 
             CreateTrayIcon();
 
@@ -107,6 +108,11 @@ namespace UltScan
             {
                 Settings.Save();
             }
+        }
+
+        private void ApplyAutoStartSetting()
+        {
+            StartupManager.SetEnabled(Settings.AutoStart);
         }
 
         private void CreateMessageWindowForHotKeys()

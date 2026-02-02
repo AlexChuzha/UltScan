@@ -15,6 +15,7 @@
     "Settings.HotkeysContext": "This shortcut starts selection mode for text recognition.",
     "Settings.HotkeysLabel": "Choose a shortcut:",
     "Settings.InterfaceLanguageHeader": "Interface language",
+    "Settings.AutoStart": "Run at startup",
     "Settings.TranslationHeader": "Translation",
     "Settings.TranslationLanguagesHeader": "Translation languages",
     "Settings.TranslationConnectionHeader": "Google Translate connection",

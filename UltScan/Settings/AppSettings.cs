@@ -8,6 +8,7 @@ public sealed class AppSettings
 {
     public HotKeyConfig HotKey { get; set; } = HotKeyPresets.Default.ToConfig();
     public string LocaleId { get; set; } = string.Empty;
+    public bool AutoStart { get; set; }
     public bool ExperimentalMode { get; set; }
     public TranslationSettings Translation { get; set; } = new();
     public OverlaySettings Overlay { get; set; } = new();

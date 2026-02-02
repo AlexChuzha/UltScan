@@ -29,6 +29,10 @@
                                   MinWidth="240"
                                   SelectionChanged="LocaleCombo_SelectionChanged"
                                   DisplayMemberPath="Name"/>
+                        <CheckBox x:Name="AutoStartCheckBox"
+                                  Margin="0,8,0,0"
+                                  Checked="AutoStart_Changed"
+                                  Unchecked="AutoStart_Changed"/>
                     </StackPanel>
                 </GroupBox>
 

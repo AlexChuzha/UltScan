@@ -11,6 +11,7 @@ public partial class SettingsWindow : Window
     private readonly LocalizationService _loc;
     private bool _suppressLocaleChange;
     private bool _suppressTranslationChange;
+    private bool _suppressAutoStartChange;
     private bool _showAllLanguages;
     private readonly ProviderOption[] _providerOptions;
     private readonly OverlayOption[] _overlayOptions;
@@ -101,6 +102,26 @@ public partial class SettingsWindow : Window
 
         _app.Localization.SetLocale(option.Id);
         _app.Settings.LocaleId = option.Id;
+        _app.Settings.Save();
+    }
+
+    private void AutoStart_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressAutoStartChange || AutoStartCheckBox.IsChecked == null)
+        {
+            return;
+        }
+
+        var enabled = AutoStartCheckBox.IsChecked.Value;
+        if (!StartupManager.SetEnabled(enabled))
+        {
+            _suppressAutoStartChange = true;
+            AutoStartCheckBox.IsChecked = _app.Settings.AutoStart;
+            _suppressAutoStartChange = false;
+            return;
+        }
+
+        _app.Settings.AutoStart = enabled;
         _app.Settings.Save();
     }
 
@@ -254,6 +275,7 @@ public partial class SettingsWindow : Window
         HotkeysGroupHeader.Text = _loc["Settings.HotkeysHeader"];
         HotkeysContext.Text = _loc["Settings.HotkeysContext"];
         HotkeysLabel.Text = _loc["Settings.HotkeysLabel"];
+        AutoStartCheckBox.Content = _loc["Settings.AutoStart"];
         ExperimentalModeCheckBox.Content = _loc["Settings.ExperimentalMode"];
         ExperimentalWarningText.Text = _loc["Settings.ExperimentalWarning"];
         OpenWelcomeButton.Content = _loc["Settings.OpenWelcome"];
@@ -283,6 +305,10 @@ public partial class SettingsWindow : Window
         var localeId = _app.Localization.CurrentLocaleId;
         LocaleCombo.SelectedItem = _loc.Locales.FirstOrDefault(l => l.Id == localeId) ?? _loc.Locales.FirstOrDefault();
         _suppressLocaleChange = false;
+
+        _suppressAutoStartChange = true;
+        AutoStartCheckBox.IsChecked = _app.Settings.AutoStart;
+        _suppressAutoStartChange = false;
 
         ExperimentalModeCheckBox.IsChecked = _app.Settings.ExperimentalMode;
         TranslationEnabledCheckBox.IsChecked = _app.Settings.Translation.Enabled;

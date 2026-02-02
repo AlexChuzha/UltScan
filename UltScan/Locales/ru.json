@@ -15,6 +15,7 @@
     "Settings.HotkeysContext": "Эта комбинация запускает режим выделения области для распознавания текста.",
     "Settings.HotkeysLabel": "Выберите комбинацию:",
     "Settings.InterfaceLanguageHeader": "Язык интерфейса",
+    "Settings.AutoStart": "Запускать вместе с Windows",
     "Settings.TranslationHeader": "Перевод",
     "Settings.TranslationLanguagesHeader": "Языки перевода",
     "Settings.TranslationConnectionHeader": "Подключение Google Translate",
