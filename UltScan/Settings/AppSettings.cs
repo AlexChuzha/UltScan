@@ -77,6 +77,7 @@ public sealed class TranslationSettings
 {
     public bool Enabled { get; set; } = true;
     public bool TranslatedBold { get; set; }
+    public TranslationMode Mode { get; set; } = TranslationMode.Standard;
     public string SourceLanguage { get; set; } = "auto";
     public string TargetLanguage { get; set; } = string.Empty;
     public int StabilizationMs { get; set; } = 700;
@@ -85,6 +86,12 @@ public sealed class TranslationSettings
     public string ProjectId { get; set; } = string.Empty;
     public string ApiKey { get; set; } = string.Empty;
     public string Provider { get; set; } = TranslationService.ProviderWeb;
+}
+
+public enum TranslationMode
+{
+    Standard,
+    VisualNovel
 }
 
 public sealed class HotKeyConfig

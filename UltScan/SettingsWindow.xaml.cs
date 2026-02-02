@@ -14,6 +14,7 @@ public partial class SettingsWindow : Window
     private bool _showAllLanguages;
     private readonly ProviderOption[] _providerOptions;
     private readonly OverlayOption[] _overlayOptions;
+    private readonly ModeOption[] _modeOptions;
 
     public SettingsWindow()
     {
@@ -32,6 +33,11 @@ public partial class SettingsWindow : Window
             new OverlayOption(OverlayOrientation.Bottom, "Settings.OverlayBottom"),
             new OverlayOption(OverlayOrientation.Left, "Settings.OverlayLeft"),
             new OverlayOption(OverlayOrientation.Top, "Settings.OverlayTop")
+        };
+        _modeOptions = new[]
+        {
+            new ModeOption(TranslationMode.Standard, "Settings.TranslationModeStandard", "Settings.TranslationModeStandardHint"),
+            new ModeOption(TranslationMode.VisualNovel, "Settings.TranslationModeVN", "Settings.TranslationModeVNHint")
         };
 
         LocaleCombo.ItemsSource = _loc.Locales;
@@ -119,6 +125,23 @@ public partial class SettingsWindow : Window
 
         _app.Settings.Translation.TranslatedBold = TranslationBoldCheckBox.IsChecked.Value;
         _app.Settings.Save();
+    }
+
+    private void TranslationMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressTranslationChange)
+        {
+            return;
+        }
+
+        if (TranslationModeCombo.SelectedItem is not ModeOption option)
+        {
+            return;
+        }
+
+        _app.Settings.Translation.Mode = option.Value;
+        _app.Settings.Save();
+        TranslationModeHint.Text = _loc[option.HintKey];
     }
 
     private void TranslationSource_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -238,6 +261,7 @@ public partial class SettingsWindow : Window
         CancelButton.Content = _loc["Settings.Cancel"];
         TranslationEnabledCheckBox.Content = _loc["Settings.TranslationEnabled"];
         TranslationBoldCheckBox.Content = _loc["Settings.TranslationBold"];
+        TranslationModeLabel.Text = _loc["Settings.TranslationMode"];
         TranslationSourceLabel.Text = _loc["Settings.TranslationSource"];
         TranslationTargetLabel.Text = _loc["Settings.TranslationTarget"];
         TranslationProjectLabel.Text = _loc["Settings.TranslationProject"];
@@ -263,6 +287,7 @@ public partial class SettingsWindow : Window
         ExperimentalModeCheckBox.IsChecked = _app.Settings.ExperimentalMode;
         TranslationEnabledCheckBox.IsChecked = _app.Settings.Translation.Enabled;
         TranslationBoldCheckBox.IsChecked = _app.Settings.Translation.TranslatedBold;
+        RebuildTranslationModes();
         TranslationProjectTextBox.Text = _app.Settings.Translation.ProjectId;
         TranslationApiKeyTextBox.Text = _app.Settings.Translation.ApiKey;
         UpdateExperimentalWarning();
@@ -323,6 +348,30 @@ public partial class SettingsWindow : Window
         MoreLanguagesButton.Content = _showAllLanguages
             ? _loc["Settings.LanguagesLess"]
             : _loc["Settings.LanguagesMore"];
+
+        _suppressTranslationChange = false;
+    }
+
+    private void RebuildTranslationModes()
+    {
+        _suppressTranslationChange = true;
+
+        TranslationModeCombo.ItemsSource = _modeOptions
+            .Select(m => new ModeOption(m.Value, m.NameKey, m.HintKey)
+            {
+                DisplayName = _loc[m.NameKey]
+            })
+            .ToList();
+
+        TranslationModeCombo.SelectedItem = TranslationModeCombo.ItemsSource
+            .Cast<ModeOption>()
+            .FirstOrDefault(m => m.Value == _app.Settings.Translation.Mode)
+            ?? TranslationModeCombo.ItemsSource.Cast<ModeOption>().FirstOrDefault();
+
+        if (TranslationModeCombo.SelectedItem is ModeOption selected)
+        {
+            TranslationModeHint.Text = _loc[selected.HintKey];
+        }
 
         _suppressTranslationChange = false;
     }
@@ -407,6 +456,22 @@ public partial class SettingsWindow : Window
 
         public OverlayOrientation Value { get; }
         public string NameKey { get; }
+        public string DisplayName { get; set; }
+    }
+
+    private sealed class ModeOption
+    {
+        public ModeOption(TranslationMode value, string nameKey, string hintKey)
+        {
+            Value = value;
+            NameKey = nameKey;
+            HintKey = hintKey;
+            DisplayName = nameKey;
+        }
+
+        public TranslationMode Value { get; }
+        public string NameKey { get; }
+        public string HintKey { get; }
         public string DisplayName { get; set; }
     }
 }

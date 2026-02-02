@@ -226,7 +226,9 @@ public partial class TextOverlayWindow : Window
         _lastStable = normalized;
         _lastLayoutLines = lines.ToList();
 
-        var split = app.Settings.ExperimentalMode ? TrySplitNameAndSpeech(_lastLayoutLines) : null;
+        var split = app.Settings.Translation.Mode == TranslationMode.VisualNovel
+            ? TrySplitNameAndSpeech(_lastLayoutLines)
+            : null;
         var textToTranslate = text;
 
         var translated = await TranslationService.TranslateAsync(
@@ -259,7 +261,14 @@ public partial class TextOverlayWindow : Window
             }
             else
             {
-                RenderPlainText(translated, isTranslated: true);
+                if (split != null)
+                {
+                    RenderTranslatedWithName(split.Value.name, translated);
+                }
+                else
+                {
+                    RenderPlainText(translated, isTranslated: true);
+                }
             }
 
             HideTranslationStatus();
@@ -386,12 +395,36 @@ public partial class TextOverlayWindow : Window
 
         Editor.Visibility = Visibility.Collapsed;
         Editor.Text = string.Empty;
+        EditorPanel.Visibility = Visibility.Collapsed;
 
         TranslationPanel.Visibility = Visibility.Visible;
         OriginalTextBlock.Text = string.IsNullOrWhiteSpace(name)
             ? speech
             : name + Environment.NewLine + speech;
         TranslationHeaderTextBlock.Text = header;
+        TranslatedTextBlock.Text = translatedText;
+        TranslatedTextBlock.FontWeight = GetTranslatedFontWeight(isTranslated: true);
+        AdjustHeightToContent(TranslationPanel);
+    }
+
+    private void RenderTranslatedWithName(string name, string translatedText)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            RenderPlainText(translatedText, isTranslated: true);
+            return;
+        }
+
+        LayoutCanvas.Visibility = Visibility.Collapsed;
+        LayoutCanvas.Children.Clear();
+
+        Editor.Visibility = Visibility.Collapsed;
+        Editor.Text = string.Empty;
+        EditorPanel.Visibility = Visibility.Collapsed;
+
+        TranslationPanel.Visibility = Visibility.Visible;
+        OriginalTextBlock.Text = name;
+        TranslationHeaderTextBlock.Text = string.Empty;
         TranslatedTextBlock.Text = translatedText;
         TranslatedTextBlock.FontWeight = GetTranslatedFontWeight(isTranslated: true);
         AdjustHeightToContent(TranslationPanel);

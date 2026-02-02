@@ -97,6 +97,18 @@
                           Checked="TranslationBold_Changed"
                           Unchecked="TranslationBold_Changed"/>
 
+                <TextBlock x:Name="TranslationModeLabel"
+                           Margin="0,10,0,4"
+                           FontWeight="SemiBold"/>
+                <ComboBox x:Name="TranslationModeCombo"
+                          MinWidth="260"
+                          SelectionChanged="TranslationMode_SelectionChanged"
+                          DisplayMemberPath="DisplayName"/>
+                <TextBlock x:Name="TranslationModeHint"
+                           Margin="0,6,0,0"
+                           TextWrapping="Wrap"
+                           Foreground="#666"/>
+
                         <TextBlock x:Name="TranslationSourceLabel"
                                    Margin="0,8,0,4"
                                    FontWeight="SemiBold"/>
