@@ -34,7 +34,11 @@ jobs:
           [xml]$csproj = Get-Content .\UltScan\UltScan.csproj
           $version = $csproj.Project.PropertyGroup.Version
           if (-not $version) { throw 'Version not found in UltScan.csproj' }
+          $parts = $version.Split('.')
+          if ($parts.Length -lt 3) { throw "Version must have at least 3 parts, got: $version" }
+          $packVersion = if ($parts.Length -ge 4) { "$($parts[0]).$($parts[1]).$($parts[2])+$($parts[3])" } else { "$($parts[0]).$($parts[1]).$($parts[2])" }
           "version=$version" >> $env:GITHUB_OUTPUT
+          "pack_version=$packVersion" >> $env:GITHUB_OUTPUT
 
       - name: Download previous releases (for delta packages)
         run: vpk download github --repoUrl https://github.com/AlexChuzha/UltScan
@@ -42,7 +46,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pack
-        run: vpk pack --packId AlexChuzha.UltScan --packVersion ${{ steps.version.outputs.version }} --packDir .\artifacts\publish --mainExe UltScan.exe
+        run: vpk pack --packId AlexChuzha.UltScan --packVersion ${{ steps.version.outputs.pack_version }} --packDir .\artifacts\publish --mainExe UltScan.exe
 
       - name: Upload to GitHub Release
         run: vpk upload github --repoUrl https://github.com/AlexChuzha/UltScan --publish --releaseName "UltScan ${{ steps.version.outputs.version }}" --tag ${{ github.event.release.tag_name || format('v{0}', steps.version.outputs.version) }}
