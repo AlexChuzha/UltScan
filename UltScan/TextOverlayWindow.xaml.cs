@@ -16,6 +16,9 @@ public partial class TextOverlayWindow : Window
     private System.Windows.Media.Brush _defaultBackground = System.Windows.Media.Brushes.Transparent;
     private System.Windows.Media.Brush _defaultBorderBrush = System.Windows.Media.Brushes.Transparent;
     private Thickness _defaultBorderThickness = new(0);
+    private System.Windows.Media.Brush _defaultTextBrush = System.Windows.Media.Brushes.White;
+    private System.Windows.Media.Brush _translatedTextBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 76, 217, 100));
+    private System.Windows.Media.Brush _captionTextBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 200, 255, 212));
     private System.Threading.CancellationTokenSource? _translationCts;
     private string _lastCandidate = string.Empty;
     private string _lastStable = string.Empty;
@@ -39,6 +42,7 @@ public partial class TextOverlayWindow : Window
         Closed += (_, __) => _translationCts?.Cancel();
 
         CacheDefaults();
+        ApplyOverlayAppearance();
     }
 
     private void CacheDefaults()
@@ -46,6 +50,108 @@ public partial class TextOverlayWindow : Window
         _defaultBackground = Card.Background;
         _defaultBorderBrush = Card.BorderBrush;
         _defaultBorderThickness = Card.BorderThickness;
+        _defaultTextBrush = Editor.Foreground;
+    }
+
+    private void ApplyOverlayAppearance()
+    {
+        var app = (App)System.Windows.Application.Current;
+        ApplyOverlayOpacity(app.Settings.Overlay.Opacity);
+        _translatedTextBrush = new SolidColorBrush(ParseColorOrDefault(
+            app.Settings.Translation.TranslatedTextColor,
+            System.Windows.Media.Color.FromArgb(255, 76, 217, 100)));
+        _captionTextBrush = new SolidColorBrush(ParseColorOrDefault(
+            app.Settings.Translation.CaptionTextColor,
+            System.Windows.Media.Color.FromArgb(255, 200, 255, 212)));
+        UpdateTranslatedTextColors();
+    }
+
+    public void ApplyAppearanceFromSettings()
+    {
+        ApplyOverlayAppearance();
+    }
+
+    public async Task ForceTranslateAsync()
+    {
+        var app = (App)System.Windows.Application.Current;
+        if (!app.Settings.Translation.Enabled)
+        {
+            return;
+        }
+
+        var layout = await ScreenTextRecognizer.RecognizeLayoutAsync(_captureRect, this);
+        var text = layout.Text;
+        var normalized = NormalizeForCompare(text);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return;
+        }
+
+        _lastCandidate = normalized;
+        _lastStable = string.Empty;
+        _lastChangeUtc = DateTime.UtcNow - TimeSpan.FromMilliseconds(app.Settings.Translation.StabilizationMs + 50);
+        await HandleCandidateAsync(app, text, layout.Lines);
+    }
+
+    private void UpdateTranslatedTextColors()
+    {
+        if (TranslationPanel.Visibility != Visibility.Visible)
+        {
+            return;
+        }
+
+        TranslatedTextBlock.Foreground = _translatedTextBrush;
+
+        if (TranslatedTextBlock.Inlines.Count == 0)
+        {
+            return;
+        }
+
+        var useCaption = true;
+        foreach (var inline in TranslatedTextBlock.Inlines)
+        {
+            if (inline is System.Windows.Documents.Run run)
+            {
+                run.Foreground = useCaption ? _captionTextBrush : _translatedTextBrush;
+                useCaption = !useCaption;
+            }
+        }
+    }
+
+    private void ApplyOverlayOpacity(double opacity)
+    {
+        if (_defaultBackground is not SolidColorBrush brush)
+        {
+            return;
+        }
+
+        var clamped = Math.Max(0.1, Math.Min(1.0, opacity));
+        var color = brush.Color;
+        var updated = System.Windows.Media.Color.FromArgb(
+            (byte)Math.Round(clamped * 255),
+            color.R,
+            color.G,
+            color.B);
+
+        Card.Background = new SolidColorBrush(updated);
+        _defaultBackground = Card.Background;
+    }
+
+    private static System.Windows.Media.Color ParseColorOrDefault(string value, System.Windows.Media.Color fallback)
+    {
+        try
+        {
+            var converted = System.Windows.Media.ColorConverter.ConvertFromString(value);
+            if (converted is System.Windows.Media.Color parsed)
+            {
+                return parsed;
+            }
+        }
+        catch
+        {
+        }
+
+        return fallback;
     }
 
     private void ConfigureLayout()
@@ -226,20 +332,35 @@ public partial class TextOverlayWindow : Window
         _lastStable = normalized;
         _lastLayoutLines = lines.ToList();
 
-        var split = app.Settings.Translation.Mode == TranslationMode.VisualNovel
-            ? TrySplitNameAndSpeech(_lastLayoutLines)
+        var blocks = app.Settings.Translation.Mode == TranslationMode.VisualNovel
+            ? TrySplitCaptionsAndBodies(_lastLayoutLines)
             : null;
-        var textToTranslate = text;
 
-        var translated = await TranslationService.TranslateAsync(
-            textToTranslate,
-            app.Settings.Translation.SourceLanguage,
-            app.Settings.Translation.TargetLanguage,
-            app.Settings.Translation.ProjectId,
-            app.Settings.Translation.ApiKey,
-            app.Settings.Translation.Provider);
+        string? translated = null;
+        IReadOnlyList<string>? translatedBodies = null;
 
-        if (translated == null)
+        if (blocks != null)
+        {
+            translatedBodies = await TranslateBodiesAsync(
+                blocks,
+                app.Settings.Translation.SourceLanguage,
+                app.Settings.Translation.TargetLanguage,
+                app.Settings.Translation.ProjectId,
+                app.Settings.Translation.ApiKey,
+                app.Settings.Translation.Provider);
+        }
+        else
+        {
+            translated = await TranslationService.TranslateAsync(
+                text,
+                app.Settings.Translation.SourceLanguage,
+                app.Settings.Translation.TargetLanguage,
+                app.Settings.Translation.ProjectId,
+                app.Settings.Translation.ApiKey,
+                app.Settings.Translation.Provider);
+        }
+
+        if (translated == null && translatedBodies == null)
         {
             return;
         }
@@ -250,25 +371,11 @@ public partial class TextOverlayWindow : Window
             {
                 var stamp = DateTime.Now.ToString("HH:mm:ss");
                 var header = string.Format(app.Localization["Overlay.TranslatedHeader"], stamp);
-                if (split != null)
-                {
-                    RenderExperimentalTranslationFromLayout(split.Value.name, split.Value.speech, header, translated);
-                }
-                else
-                {
-                    RenderExperimentalTranslation(text, header, translated);
-                }
+                RenderExperimentalTranslationWithBlocks(text, header, translated, blocks, translatedBodies);
             }
             else
             {
-                if (split != null)
-                {
-                    RenderTranslatedWithName(split.Value.name, translated);
-                }
-                else
-                {
-                    RenderPlainText(translated, isTranslated: true);
-                }
+                RenderTranslationWithBlocks(text, translated, blocks, translatedBodies);
             }
 
             HideTranslationStatus();
@@ -365,7 +472,7 @@ public partial class TextOverlayWindow : Window
         EditorPanel.Visibility = Visibility.Visible;
         Editor.Text = text;
         Editor.CaretIndex = Editor.Text.Length;
-        Editor.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 242, 242, 242));
+        Editor.Foreground = isTranslated ? _translatedTextBrush : _defaultTextBrush;
         Editor.FontWeight = GetTranslatedFontWeight(isTranslated);
         AdjustHeightToContent(EditorPanel);
         HideTranslationStatus();
@@ -381,10 +488,14 @@ public partial class TextOverlayWindow : Window
         EditorPanel.Visibility = Visibility.Collapsed;
 
         TranslationPanel.Visibility = Visibility.Visible;
+        OriginalTextBlock.Visibility = Visibility.Visible;
+        TranslationHeaderTextBlock.Visibility = Visibility.Visible;
         OriginalTextBlock.Text = original;
         TranslationHeaderTextBlock.Text = header;
         TranslatedTextBlock.Text = translated;
+        TranslatedTextBlock.Foreground = _translatedTextBrush;
         TranslatedTextBlock.FontWeight = GetTranslatedFontWeight(isTranslated: true);
+        TranslationStatusTextBlock.Visibility = Visibility.Collapsed;
         AdjustHeightToContent(TranslationPanel);
     }
 
@@ -398,12 +509,16 @@ public partial class TextOverlayWindow : Window
         EditorPanel.Visibility = Visibility.Collapsed;
 
         TranslationPanel.Visibility = Visibility.Visible;
+        OriginalTextBlock.Visibility = Visibility.Visible;
+        TranslationHeaderTextBlock.Visibility = Visibility.Visible;
         OriginalTextBlock.Text = string.IsNullOrWhiteSpace(name)
             ? speech
             : name + Environment.NewLine + speech;
         TranslationHeaderTextBlock.Text = header;
         TranslatedTextBlock.Text = translatedText;
+        TranslatedTextBlock.Foreground = _translatedTextBrush;
         TranslatedTextBlock.FontWeight = GetTranslatedFontWeight(isTranslated: true);
+        TranslationStatusTextBlock.Visibility = Visibility.Collapsed;
         AdjustHeightToContent(TranslationPanel);
     }
 
@@ -423,10 +538,14 @@ public partial class TextOverlayWindow : Window
         EditorPanel.Visibility = Visibility.Collapsed;
 
         TranslationPanel.Visibility = Visibility.Visible;
+        OriginalTextBlock.Visibility = Visibility.Visible;
+        TranslationHeaderTextBlock.Visibility = Visibility.Visible;
         OriginalTextBlock.Text = name;
         TranslationHeaderTextBlock.Text = string.Empty;
         TranslatedTextBlock.Text = translatedText;
+        TranslatedTextBlock.Foreground = _translatedTextBrush;
         TranslatedTextBlock.FontWeight = GetTranslatedFontWeight(isTranslated: true);
+        TranslationStatusTextBlock.Visibility = Visibility.Collapsed;
         AdjustHeightToContent(TranslationPanel);
     }
 
@@ -465,9 +584,11 @@ public partial class TextOverlayWindow : Window
         return app.Settings.Translation.TranslatedBold ? FontWeights.Bold : FontWeights.Normal;
     }
 
-    private (string name, string speech)? TrySplitNameAndSpeech(IReadOnlyList<OcrLineLayout> lines)
+    private sealed record VnBlock(string Caption, List<string> BodyLines);
+
+    private static List<VnBlock>? TrySplitCaptionsAndBodies(IReadOnlyList<OcrLineLayout> lines)
     {
-        if (lines == null || lines.Count < 2)
+        if (lines == null || lines.Count == 0)
         {
             return null;
         }
@@ -477,27 +598,254 @@ public partial class TextOverlayWindow : Window
             .OrderBy(l => l.Bounds.Y)
             .ToList();
 
-        if (ordered.Count < 2)
+        if (ordered.Count == 0)
         {
             return null;
         }
 
-        var first = ordered[0].Text.Trim();
-        var rest = ordered.Skip(1).Select(l => l.Text.Trim()).ToList();
-        var avgRestLen = rest.Count > 0 ? rest.Average(t => t.Length) : 0;
-        if (avgRestLen <= 0)
+        var avgLen = ordered.Average(l => l.Text.Trim().Length);
+        var avgWidth = ordered.Average(l => l.Bounds.Width);
+
+        var gaps = new List<double>();
+        for (int i = 0; i < ordered.Count - 1; i++)
+        {
+            var gap = ordered[i + 1].Bounds.Y - (ordered[i].Bounds.Y + ordered[i].Bounds.Height);
+            if (gap >= 0)
+            {
+                gaps.Add(gap);
+            }
+        }
+
+        var avgGap = gaps.Count > 0 ? gaps.Average() : 0;
+
+        bool IsCaptionLine(OcrLineLayout line, int index)
+        {
+            var text = line.Text.Trim();
+            var len = text.Length;
+            var wordCount = text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+            var width = line.Bounds.Width;
+
+            var lenScore = len <= Math.Max(6, avgLen * 0.65);
+            var widthScore = width <= avgWidth * 0.75;
+
+            var last = text[^1];
+            var punctScore = last != '.' && last != '?' && last != '!' && last != ':' && last != ';' && last != ',';
+
+            var gapAbove = index > 0
+                ? line.Bounds.Y - (ordered[index - 1].Bounds.Y + ordered[index - 1].Bounds.Height)
+                : avgGap;
+            var gapBelow = index + 1 < ordered.Count
+                ? ordered[index + 1].Bounds.Y - (line.Bounds.Y + line.Bounds.Height)
+                : avgGap;
+            var gapScore = avgGap > 0 && (gapAbove >= avgGap * 1.4 || gapBelow >= avgGap * 1.4);
+
+            var wordScore = wordCount <= 3;
+
+            var score = 0;
+            if (lenScore) score++;
+            if (widthScore) score++;
+            if (punctScore) score++;
+            if (gapScore) score++;
+            if (wordScore) score++;
+
+            return score >= 3;
+        }
+
+        var blocks = new List<VnBlock>();
+        VnBlock? current = null;
+        bool hasCaption = false;
+
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            var line = ordered[i];
+            var text = line.Text.Trim();
+
+            if (IsCaptionLine(line, i))
+            {
+                hasCaption = true;
+                if (current != null)
+                {
+                    blocks.Add(current);
+                }
+
+                current = new VnBlock(text, new List<string>());
+            }
+            else
+            {
+                if (current == null)
+                {
+                    current = new VnBlock(string.Empty, new List<string>());
+                }
+
+                current.BodyLines.Add(text);
+            }
+        }
+
+        if (current != null)
+        {
+            blocks.Add(current);
+        }
+
+        return hasCaption ? blocks : null;
+    }
+
+    private static async Task<IReadOnlyList<string>?> TranslateBodiesAsync(
+        IReadOnlyList<VnBlock> blocks,
+        string sourceLanguage,
+        string targetLanguage,
+        string projectId,
+        string? apiKeyOverride,
+        string provider)
+    {
+        var bodies = blocks
+            .Select(b => string.Join(Environment.NewLine, b.BodyLines))
+            .ToList();
+
+        if (bodies.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        const string separator = "\n\uE000\n";
+        var combined = string.Join(separator, bodies);
+
+        var translated = await TranslationService.TranslateAsync(
+            combined,
+            sourceLanguage,
+            targetLanguage,
+            projectId,
+            apiKeyOverride,
+            provider);
+
+        if (translated == null)
         {
             return null;
         }
 
-        var looksLikeName = first.Length <= 30 && first.Length <= avgRestLen * 0.9;
-        if (!looksLikeName)
+        var split = translated.Split(new[] { separator }, StringSplitOptions.None);
+        if (split.Length == bodies.Count)
         {
-            return null;
+            return split;
         }
 
-        var speech = string.Join(Environment.NewLine, rest);
-        return (first, speech);
+        var perBlock = new List<string>(bodies.Count);
+        for (int i = 0; i < bodies.Count; i++)
+        {
+            if (string.IsNullOrWhiteSpace(bodies[i]))
+            {
+                perBlock.Add(string.Empty);
+                continue;
+            }
+
+            var blockTranslation = await TranslationService.TranslateAsync(
+                bodies[i],
+                sourceLanguage,
+                targetLanguage,
+                projectId,
+                apiKeyOverride,
+                provider);
+
+            perBlock.Add(blockTranslation ?? string.Empty);
+        }
+
+        return perBlock;
+    }
+
+    private void RenderTranslationWithBlocks(
+        string originalText,
+        string? translated,
+        IReadOnlyList<VnBlock>? blocks,
+        IReadOnlyList<string>? translatedBodies)
+    {
+        if (blocks == null || translatedBodies == null)
+        {
+            RenderPlainText(translated ?? originalText, isTranslated: translated != null);
+            return;
+        }
+
+        RenderStructuredTranslation(blocks, translatedBodies);
+    }
+
+    private void RenderExperimentalTranslationWithBlocks(
+        string originalText,
+        string header,
+        string? translated,
+        IReadOnlyList<VnBlock>? blocks,
+        IReadOnlyList<string>? translatedBodies)
+    {
+        if (blocks == null || translatedBodies == null)
+        {
+            RenderExperimentalTranslation(originalText, header, translated ?? string.Empty);
+            return;
+        }
+
+        var originalStructured = ComposeStructuredText(blocks, blocks.Select(b => string.Join(Environment.NewLine, b.BodyLines)).ToList());
+        var translatedStructured = ComposeStructuredText(blocks, translatedBodies);
+        RenderExperimentalTranslation(originalStructured, header, translatedStructured);
+    }
+
+    private static string ComposeStructuredText(IReadOnlyList<VnBlock> blocks, IReadOnlyList<string> bodies)
+    {
+        var sb = new System.Text.StringBuilder();
+        for (int i = 0; i < blocks.Count; i++)
+        {
+            if (i > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine();
+            }
+
+            sb.AppendLine(blocks[i].Caption);
+            if (bodies.Count > i && !string.IsNullOrWhiteSpace(bodies[i]))
+            {
+                sb.Append(bodies[i]);
+            }
+        }
+
+        return sb.ToString().TrimEnd();
+    }
+
+    private void RenderStructuredTranslation(IReadOnlyList<VnBlock> blocks, IReadOnlyList<string> bodies)
+    {
+        LayoutCanvas.Visibility = Visibility.Collapsed;
+        LayoutCanvas.Children.Clear();
+        EditorPanel.Visibility = Visibility.Collapsed;
+        Editor.Visibility = Visibility.Collapsed;
+        Editor.Text = string.Empty;
+
+        TranslationPanel.Visibility = Visibility.Visible;
+        OriginalTextBlock.Visibility = Visibility.Collapsed;
+        TranslationHeaderTextBlock.Visibility = Visibility.Collapsed;
+        TranslationStatusTextBlock.Visibility = Visibility.Collapsed;
+
+        TranslatedTextBlock.Inlines.Clear();
+
+        for (int i = 0; i < blocks.Count; i++)
+        {
+            if (i > 0)
+            {
+                TranslatedTextBlock.Inlines.Add(new System.Windows.Documents.LineBreak());
+                TranslatedTextBlock.Inlines.Add(new System.Windows.Documents.LineBreak());
+            }
+
+            var captionRun = new System.Windows.Documents.Run(blocks[i].Caption)
+            {
+                Foreground = _captionTextBrush
+            };
+            TranslatedTextBlock.Inlines.Add(captionRun);
+            TranslatedTextBlock.Inlines.Add(new System.Windows.Documents.LineBreak());
+
+            var bodyText = bodies.Count > i ? bodies[i] : string.Empty;
+            var bodyRun = new System.Windows.Documents.Run(string.IsNullOrWhiteSpace(bodyText) ? "\u200B" : bodyText)
+            {
+                Foreground = _translatedTextBrush,
+                FontWeight = GetTranslatedFontWeight(isTranslated: true)
+            };
+            TranslatedTextBlock.Inlines.Add(bodyRun);
+        }
+
+        AdjustHeightToContent(TranslationPanel);
+        HideTranslationStatus();
     }
 
     private void RenderLayout(OcrLayoutResult layout)

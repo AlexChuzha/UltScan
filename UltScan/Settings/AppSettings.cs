@@ -64,6 +64,7 @@ public sealed class AppSettings
 public sealed class OverlaySettings
 {
     public OverlayOrientation Orientation { get; set; } = OverlayOrientation.Right;
+    public double Opacity { get; set; } = 0.6;
 }
 
 public enum OverlayOrientation
@@ -78,6 +79,8 @@ public sealed class TranslationSettings
 {
     public bool Enabled { get; set; } = true;
     public bool TranslatedBold { get; set; }
+    public string TranslatedTextColor { get; set; } = "#4CD964";
+    public string CaptionTextColor { get; set; } = "#C8FFD4";
     public TranslationMode Mode { get; set; } = TranslationMode.Standard;
     public string SourceLanguage { get; set; } = "auto";
     public string TargetLanguage { get; set; } = string.Empty;

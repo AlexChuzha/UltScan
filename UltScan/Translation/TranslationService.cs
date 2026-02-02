@@ -96,19 +96,71 @@ public static class TranslationService
         }
 
         var sl = string.IsNullOrWhiteSpace(sourceLanguage) ? "auto" : sourceLanguage;
-        var tl = targetLanguage;
+        var tl = NormalizeLanguageCode(targetLanguage);
         var url = $"https://translate.google.com/m?sl={Uri.EscapeDataString(sl)}&tl={Uri.EscapeDataString(tl)}&q={Uri.EscapeDataString(text)}";
 
         var html = await Client.GetStringAsync(url).ConfigureAwait(false);
         var match = Regex.Match(html, "class=\"result-container\">(?<t>.*?)</div>", RegexOptions.Singleline);
         if (!match.Success)
         {
-            return null;
+            return await TranslateViaGtxAsync(text, sl, tl).ConfigureAwait(false);
         }
 
         var raw = match.Groups["t"].Value;
         var decoded = WebUtility.HtmlDecode(raw);
         return decoded;
+    }
+
+    private static async Task<string?> TranslateViaGtxAsync(string text, string sourceLanguage, string targetLanguage)
+    {
+        var url = $"https://translate.googleapis.com/translate_a/single?client=gtx&sl={Uri.EscapeDataString(sourceLanguage)}&tl={Uri.EscapeDataString(targetLanguage)}&dt=t&q={Uri.EscapeDataString(text)}";
+        var json = await Client.GetStringAsync(url).ConfigureAwait(false);
+
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array || doc.RootElement.GetArrayLength() == 0)
+            {
+                return null;
+            }
+
+            var segments = doc.RootElement[0];
+            if (segments.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+
+            var sb = new StringBuilder();
+            foreach (var segment in segments.EnumerateArray())
+            {
+                if (segment.ValueKind != JsonValueKind.Array || segment.GetArrayLength() == 0)
+                {
+                    continue;
+                }
+
+                var piece = segment[0];
+                if (piece.ValueKind == JsonValueKind.String)
+                {
+                    sb.Append(piece.GetString());
+                }
+            }
+
+            return sb.Length > 0 ? sb.ToString() : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string NormalizeLanguageCode(string code)
+    {
+        if (string.Equals(code, "zh", StringComparison.OrdinalIgnoreCase))
+        {
+            return "zh-CN";
+        }
+
+        return code;
     }
 
     private sealed class TranslateRequest

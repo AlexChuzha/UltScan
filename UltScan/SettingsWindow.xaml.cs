@@ -2,6 +2,11 @@ using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using MediaColor = System.Windows.Media.Color;
+using MediaColorConverter = System.Windows.Media.ColorConverter;
+using MediaBrush = System.Windows.Media.Brush;
+using MediaBrushes = System.Windows.Media.Brushes;
 
 namespace UltScan;
 
@@ -12,18 +17,23 @@ public partial class SettingsWindow : Window
     private bool _suppressLocaleChange;
     private bool _suppressTranslationChange;
     private bool _suppressAutoStartChange;
+    private bool _suppressOverlayChange;
+    private bool _suppressAppearanceChange;
     private bool _showAllLanguages;
     private bool _isCheckingUpdates;
     private readonly ProviderOption[] _providerOptions;
     private readonly OverlayOption[] _overlayOptions;
     private readonly ModeOption[] _modeOptions;
+    private readonly ThemeOption[] _themeOptions;
 
     public SettingsWindow()
     {
-        InitializeComponent();
-
         _app = (App)System.Windows.Application.Current;
         _loc = _app.Localization;
+        _suppressOverlayChange = true;
+        _suppressAppearanceChange = true;
+
+        InitializeComponent();
         _providerOptions = new[]
         {
             new ProviderOption(TranslationService.ProviderApi, "Settings.TranslationProviderApi"),
@@ -41,9 +51,20 @@ public partial class SettingsWindow : Window
             new ModeOption(TranslationMode.Standard, "Settings.TranslationModeStandard", "Settings.TranslationModeStandardHint"),
             new ModeOption(TranslationMode.VisualNovel, "Settings.TranslationModeVN", "Settings.TranslationModeVNHint")
         };
+        _themeOptions = new[]
+        {
+            new ThemeOption("#C8FFD4", "#4CD964", "Settings.TranslationThemeEmerald"),
+            new ThemeOption("#CFE8FF", "#64B5F6", "Settings.TranslationThemeSky"),
+            new ThemeOption("#FFE8A3", "#FFD54F", "Settings.TranslationThemeAmber"),
+            new ThemeOption("#FFD1D1", "#FF8A80", "Settings.TranslationThemeRose"),
+            new ThemeOption("#E9D7F7", "#CE93D8", "Settings.TranslationThemeViolet"),
+            new ThemeOption("#FFFFFF", "#F2F2F2", "Settings.TranslationThemeMono")
+        };
 
         LocaleCombo.ItemsSource = _loc.Locales;
         RefreshLocalization();
+        _suppressOverlayChange = false;
+        _suppressAppearanceChange = false;
     }
 
     private void HotKeyCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -72,21 +93,38 @@ public partial class SettingsWindow : Window
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
-        if (HotKeyCombo.SelectedItem is not HotKeyPresetItem item)
+        if (!TryApplySettings())
         {
             return;
+        }
+
+        Close();
+    }
+
+    private void Apply_Click(object sender, RoutedEventArgs e)
+    {
+        TryApplySettings();
+    }
+
+    private bool TryApplySettings()
+    {
+        if (HotKeyCombo.SelectedItem is not HotKeyPresetItem item)
+        {
+            return false;
         }
 
         var config = item.Preset.ToConfig();
         if (!_app.TryApplyHotKey(config, showError: true))
         {
-            return;
+            return false;
         }
 
         _app.Settings.HotKey = config;
         _app.Settings.Save();
         _app.UpdateTrayMenuText();
-        Close();
+        _app.ApplyOverlayAppearance();
+        _ = _app.ForceOverlayTranslationAsync();
+        return true;
     }
 
     private void LocaleCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -146,6 +184,23 @@ public partial class SettingsWindow : Window
         }
 
         _app.Settings.Translation.TranslatedBold = TranslationBoldCheckBox.IsChecked.Value;
+        _app.Settings.Save();
+    }
+
+    private void TranslationColor_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressAppearanceChange)
+        {
+            return;
+        }
+
+        if (TranslationColorCombo.SelectedItem is not ThemeOption option)
+        {
+            return;
+        }
+
+        _app.Settings.Translation.CaptionTextColor = option.CaptionHex;
+        _app.Settings.Translation.TranslatedTextColor = option.TextHex;
         _app.Settings.Save();
     }
 
@@ -238,7 +293,7 @@ public partial class SettingsWindow : Window
 
     private void OverlayOrientation_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_suppressTranslationChange)
+        if (_suppressOverlayChange)
         {
             return;
         }
@@ -250,6 +305,19 @@ public partial class SettingsWindow : Window
 
         _app.Settings.Overlay.Orientation = option.Value;
         _app.Settings.Save();
+    }
+
+    private void OverlayOpacity_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_suppressOverlayChange)
+        {
+            return;
+        }
+
+        var value = Math.Clamp(e.NewValue, 0.1, 1.0);
+        _app.Settings.Overlay.Opacity = value;
+        _app.Settings.Save();
+        OverlayOpacityValue.Text = $"{(int)Math.Round(value * 100)}%";
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
@@ -272,6 +340,10 @@ public partial class SettingsWindow : Window
     public void RefreshLocalization()
     {
         Title = _loc["Settings.Title"];
+        GeneralTab.Header = _loc["Settings.TabGeneral"];
+        TranslationTab.Header = _loc["Settings.TabTranslation"];
+        OverlayTab.Header = _loc["Settings.TabOverlay"];
+        AdvancedTab.Header = _loc["Settings.TabAdvanced"];
         InterfaceLanguageHeaderText.Text = _loc["Settings.InterfaceLanguageHeader"];
         HotkeysGroupHeader.Text = _loc["Settings.HotkeysHeader"];
         HotkeysContext.Text = _loc["Settings.HotkeysContext"];
@@ -282,9 +354,11 @@ public partial class SettingsWindow : Window
         OpenWelcomeButton.Content = _loc["Settings.OpenWelcome"];
         CheckUpdatesButton.Content = _loc["Settings.CheckUpdates"];
         SaveButton.Content = _loc["Settings.Save"];
+        ApplyButton.Content = _loc["Settings.Apply"];
         CancelButton.Content = _loc["Settings.Cancel"];
         TranslationEnabledCheckBox.Content = _loc["Settings.TranslationEnabled"];
         TranslationBoldCheckBox.Content = _loc["Settings.TranslationBold"];
+        TranslationColorLabel.Text = _loc["Settings.TranslationTextColor"];
         TranslationModeLabel.Text = _loc["Settings.TranslationMode"];
         TranslationSourceLabel.Text = _loc["Settings.TranslationSource"];
         TranslationTargetLabel.Text = _loc["Settings.TranslationTarget"];
@@ -299,6 +373,7 @@ public partial class SettingsWindow : Window
         ExperimentalHeaderText.Text = _loc["Settings.ExperimentalHeader"];
         OverlayHeaderText.Text = _loc["Settings.OverlayHeader"];
         OverlayOrientationLabel.Text = _loc["Settings.OverlayOrientation"];
+        OverlayOpacityLabel.Text = _loc["Settings.OverlayOpacity"];
 
         RebuildHotKeyItems();
         RebuildTranslationLanguageLists();
@@ -315,6 +390,43 @@ public partial class SettingsWindow : Window
         ExperimentalModeCheckBox.IsChecked = _app.Settings.ExperimentalMode;
         TranslationEnabledCheckBox.IsChecked = _app.Settings.Translation.Enabled;
         TranslationBoldCheckBox.IsChecked = _app.Settings.Translation.TranslatedBold;
+        _suppressAppearanceChange = true;
+        var sampleCaption = _loc["Settings.TranslationThemeSampleCaption"];
+        var sampleBody = _loc["Settings.TranslationThemeSampleBody"];
+        var themeItems = _themeOptions
+            .Select(o => new ThemeOption(o.CaptionHex, o.TextHex, o.NameKey)
+            {
+                DisplayName = _loc[o.NameKey],
+                CaptionBrush = ToBrush(o.CaptionHex),
+                TextBrush = ToBrush(o.TextHex),
+                SampleCaption = sampleCaption,
+                SampleBody = sampleBody
+            })
+            .ToList();
+
+        var currentCaption = _app.Settings.Translation.CaptionTextColor;
+        var currentText = _app.Settings.Translation.TranslatedTextColor;
+        var selectedTheme = themeItems.FirstOrDefault(o =>
+            string.Equals(o.CaptionHex, currentCaption, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(o.TextHex, currentText, StringComparison.OrdinalIgnoreCase));
+
+        if (selectedTheme == null)
+        {
+            var custom = new ThemeOption(currentCaption, currentText, "Settings.TranslationThemeCustom")
+            {
+                DisplayName = _loc["Settings.TranslationThemeCustom"],
+                CaptionBrush = ToBrush(currentCaption),
+                TextBrush = ToBrush(currentText),
+                SampleCaption = sampleCaption,
+                SampleBody = sampleBody
+            };
+            themeItems.Insert(0, custom);
+            selectedTheme = custom;
+        }
+
+        TranslationColorCombo.ItemsSource = themeItems;
+        TranslationColorCombo.SelectedItem = selectedTheme ?? themeItems.FirstOrDefault();
+        _suppressAppearanceChange = false;
         RebuildTranslationModes();
         TranslationProjectTextBox.Text = _app.Settings.Translation.ProjectId;
         TranslationApiKeyTextBox.Text = _app.Settings.Translation.ApiKey;
@@ -322,6 +434,11 @@ public partial class SettingsWindow : Window
         UpdateTranslationWarnings();
         UpdateTranslationApiFields();
         RebuildOverlayOptions();
+
+        _suppressOverlayChange = true;
+        OverlayOpacitySlider.Value = Math.Clamp(_app.Settings.Overlay.Opacity, 0.1, 1.0);
+        OverlayOpacityValue.Text = $"{(int)Math.Round(OverlayOpacitySlider.Value * 100)}%";
+        _suppressOverlayChange = false;
     }
 
     private void UpdateExperimentalWarning()
@@ -350,8 +467,8 @@ public partial class SettingsWindow : Window
     {
         _suppressTranslationChange = true;
 
-        var sourceList = TranslationLanguages.GetLanguages(_showAllLanguages, includeAuto: true);
-        var targetList = TranslationLanguages.GetLanguages(_showAllLanguages, includeAuto: false);
+        var sourceList = TranslationLanguages.GetLanguages(_showAllLanguages, includeAuto: true).ToList();
+        var targetList = TranslationLanguages.GetLanguages(_showAllLanguages, includeAuto: false).ToList();
 
         TranslationSourceCombo.ItemsSource = sourceList;
         TranslationTargetCombo.ItemsSource = targetList;
@@ -362,6 +479,11 @@ public partial class SettingsWindow : Window
 
         var targetCode = _app.Settings.Translation.TargetLanguage;
 
+        EnsureSelectedLanguage(sourceList, sourceCode, includeAuto: true);
+        EnsureSelectedLanguage(targetList, targetCode, includeAuto: false);
+
+        TranslationSourceCombo.ItemsSource = sourceList;
+        TranslationTargetCombo.ItemsSource = targetList;
         TranslationSourceCombo.SelectedItem = sourceList.FirstOrDefault(l => l.Code == sourceCode) ?? sourceList.FirstOrDefault();
         TranslationTargetCombo.SelectedItem = targetList.FirstOrDefault(l => l.Code == targetCode) ?? targetList.FirstOrDefault();
 
@@ -378,6 +500,33 @@ public partial class SettingsWindow : Window
             : _loc["Settings.LanguagesMore"];
 
         _suppressTranslationChange = false;
+    }
+
+    private static void EnsureSelectedLanguage(List<LanguageOption> list, string code, bool includeAuto)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return;
+        }
+
+        if (!includeAuto && string.Equals(code, "auto", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (list.Any(l => string.Equals(l.Code, code, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        var known = TranslationLanguages.FindByCode(code);
+        if (known != null)
+        {
+            list.Add(known);
+            return;
+        }
+
+        list.Add(new LanguageOption(code, code.ToUpperInvariant()));
     }
 
     private void RebuildTranslationModes()
@@ -417,7 +566,7 @@ public partial class SettingsWindow : Window
 
     private void RebuildOverlayOptions()
     {
-        _suppressTranslationChange = true;
+        _suppressOverlayChange = true;
 
         OverlayOrientationCombo.ItemsSource = _overlayOptions
             .Select(o => new OverlayOption(o.Value, o.NameKey) { DisplayName = _loc[o.NameKey] })
@@ -428,7 +577,31 @@ public partial class SettingsWindow : Window
             .FirstOrDefault(o => o.Value == _app.Settings.Overlay.Orientation)
             ?? OverlayOrientationCombo.ItemsSource.Cast<OverlayOption>().FirstOrDefault();
 
-        _suppressTranslationChange = false;
+        _suppressOverlayChange = false;
+    }
+
+    private static bool TryParseColor(string value, out MediaColor color)
+    {
+        try
+        {
+            var converted = MediaColorConverter.ConvertFromString(value);
+            if (converted is MediaColor parsed)
+            {
+                color = parsed;
+                return true;
+            }
+        }
+        catch
+        {
+        }
+
+        color = default;
+        return false;
+    }
+
+    private static MediaBrush ToBrush(string hex)
+    {
+        return TryParseColor(hex, out var color) ? new SolidColorBrush(color) : MediaBrushes.Transparent;
     }
 
     private void OpenWelcome_Click(object sender, RoutedEventArgs e)
@@ -526,5 +699,29 @@ public partial class SettingsWindow : Window
         public string NameKey { get; }
         public string HintKey { get; }
         public string DisplayName { get; set; }
+    }
+
+    private sealed class ThemeOption
+    {
+        public ThemeOption(string captionHex, string textHex, string nameKey)
+        {
+            CaptionHex = captionHex;
+            TextHex = textHex;
+            NameKey = nameKey;
+            DisplayName = nameKey;
+            CaptionBrush = MediaBrushes.Transparent;
+            TextBrush = MediaBrushes.Transparent;
+            SampleCaption = string.Empty;
+            SampleBody = string.Empty;
+        }
+
+        public string CaptionHex { get; }
+        public string TextHex { get; }
+        public string NameKey { get; }
+        public string DisplayName { get; set; }
+        public MediaBrush CaptionBrush { get; set; }
+        public MediaBrush TextBrush { get; set; }
+        public string SampleCaption { get; set; }
+        public string SampleBody { get; set; }
     }
 }

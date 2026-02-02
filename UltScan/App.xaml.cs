@@ -408,6 +408,21 @@ namespace UltScan
             _exitItem.Text = Localization["App.Tray.Exit"];
         }
 
+        public void ApplyOverlayAppearance()
+        {
+            _overlayWindow?.ApplyAppearanceFromSettings();
+        }
+
+        public async Task ForceOverlayTranslationAsync()
+        {
+            if (_overlayWindow == null)
+            {
+                return;
+            }
+
+            await _overlayWindow.ForceTranslateAsync();
+        }
+
         private string GetCurrentHotKeyLabel()
         {
             var preset = HotKeyPresets.FindById(Settings.HotKey.Id);

@@ -139,6 +139,21 @@ public static class TranslationLanguages
         return list;
     }
 
+    public static LanguageOption? FindByCode(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return null;
+        }
+
+        if (string.Equals(code, Auto.Code, StringComparison.OrdinalIgnoreCase))
+        {
+            return Auto;
+        }
+
+        return All.FirstOrDefault(l => string.Equals(l.Code, code, StringComparison.OrdinalIgnoreCase));
+    }
+
     public static string GetBestTargetLanguage(CultureInfo culture)
     {
         var code = culture.TwoLetterISOLanguageName;

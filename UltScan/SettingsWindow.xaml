@@ -1,7 +1,7 @@
 <Window x:Class="UltScan.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Settings" Height="640" Width="560"
+        Title="Settings" Height="720" Width="560"
         WindowStartupLocation="CenterScreen">
     <DockPanel Margin="16">
         <StackPanel DockPanel.Dock="Bottom"
@@ -12,208 +12,284 @@
                     Width="120"
                     Margin="0,0,8,0"
                     Click="Save_Click"/>
+            <Button x:Name="ApplyButton"
+                    Width="120"
+                    Margin="0,0,8,0"
+                    Click="Apply_Click"/>
             <Button x:Name="CancelButton"
                     Width="100"
                     Click="Cancel_Click"/>
         </StackPanel>
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel>
-                <GroupBox Margin="0,0,0,12">
-                    <GroupBox.Header>
-                        <TextBlock x:Name="InterfaceLanguageHeaderText"
-                                   FontWeight="SemiBold"/>
-                    </GroupBox.Header>
-                    <StackPanel Margin="8">
-                        <ComboBox x:Name="LocaleCombo"
-                                  MinWidth="240"
-                                  SelectionChanged="LocaleCombo_SelectionChanged"
-                                  DisplayMemberPath="Name"/>
-                        <CheckBox x:Name="AutoStartCheckBox"
-                                  Margin="0,8,0,0"
-                                  Checked="AutoStart_Changed"
-                                  Unchecked="AutoStart_Changed"/>
+        <TabControl>
+            <TabItem x:Name="GeneralTab">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="0,8,0,0">
+                        <GroupBox Margin="0,0,0,12">
+                            <GroupBox.Header>
+                                <TextBlock x:Name="InterfaceLanguageHeaderText"
+                                           FontWeight="SemiBold"/>
+                            </GroupBox.Header>
+                            <StackPanel Margin="8">
+                                <ComboBox x:Name="LocaleCombo"
+                                          MinWidth="240"
+                                          SelectionChanged="LocaleCombo_SelectionChanged"
+                                          DisplayMemberPath="Name"/>
+                                <CheckBox x:Name="AutoStartCheckBox"
+                                          Margin="0,8,0,0"
+                                          Checked="AutoStart_Changed"
+                                          Unchecked="AutoStart_Changed"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Margin="0,0,0,12">
+                            <GroupBox.Header>
+                                <TextBlock x:Name="HotkeysGroupHeader"
+                                           FontWeight="SemiBold"/>
+                            </GroupBox.Header>
+                            <StackPanel Margin="8">
+                                <TextBlock x:Name="HotkeysContext"
+                                           Margin="0,0,0,8"
+                                           TextWrapping="Wrap"
+                                           Foreground="#555"/>
+
+                                <TextBlock x:Name="HotkeysLabel"
+                                           Margin="0,0,0,4"
+                                           FontWeight="SemiBold"/>
+
+                                <ComboBox x:Name="HotKeyCombo"
+                                          MinWidth="280"
+                                          SelectionChanged="HotKeyCombo_SelectionChanged"
+                                          DisplayMemberPath="DisplayName"/>
+
+                                <TextBlock x:Name="HintText"
+                                           Margin="0,10,0,0"
+                                           TextWrapping="Wrap"
+                                           Foreground="#444"/>
+
+                                <TextBlock x:Name="WarningText"
+                                           Margin="0,8,0,0"
+                                           TextWrapping="Wrap"
+                                           Foreground="#B00020"
+                                           Visibility="Collapsed"/>
+                            </StackPanel>
+                        </GroupBox>
                     </StackPanel>
-                </GroupBox>
+                </ScrollViewer>
+            </TabItem>
 
-                <GroupBox Margin="0,0,0,12">
-                    <GroupBox.Header>
-                        <TextBlock x:Name="HotkeysGroupHeader"
-                                   FontWeight="SemiBold"/>
-                    </GroupBox.Header>
-                    <StackPanel Margin="8">
-                        <TextBlock x:Name="HotkeysContext"
-                                   Margin="0,0,0,8"
-                                   TextWrapping="Wrap"
-                                   Foreground="#555"/>
+            <TabItem x:Name="TranslationTab">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="0,8,0,0">
+                        <GroupBox Margin="0,0,0,12">
+                            <GroupBox.Header>
+                                <TextBlock x:Name="TranslationLanguageHeaderText"
+                                           FontWeight="SemiBold"/>
+                            </GroupBox.Header>
+                            <StackPanel Margin="8">
+                                <CheckBox x:Name="TranslationEnabledCheckBox"
+                                          Content="Translation"
+                                          Checked="TranslationEnabled_Changed"
+                                          Unchecked="TranslationEnabled_Changed"/>
+                                <CheckBox x:Name="TranslationBoldCheckBox"
+                                          Margin="0,6,0,0"
+                                          Content="Bold translation"
+                                          Checked="TranslationBold_Changed"
+                                          Unchecked="TranslationBold_Changed"/>
+                                <TextBlock x:Name="TranslationColorLabel"
+                                           Margin="0,10,0,4"
+                                           FontWeight="SemiBold"/>
+                                <ComboBox x:Name="TranslationColorCombo"
+                                          MinWidth="240"
+                                          SelectionChanged="TranslationColor_SelectionChanged">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding DisplayName}"
+                                                           FontWeight="SemiBold"/>
+                                                <StackPanel Orientation="Horizontal"
+                                                            Margin="0,2,0,0">
+                                                    <Border Width="12"
+                                                            Height="12"
+                                                            Margin="0,2,6,0"
+                                                            BorderBrush="#666"
+                                                            BorderThickness="1"
+                                                            Background="{Binding CaptionBrush}"/>
+                                                    <TextBlock Text="{Binding SampleCaption}"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal"
+                                                            Margin="0,2,0,0">
+                                                    <Border Width="12"
+                                                            Height="12"
+                                                            Margin="0,2,6,0"
+                                                            BorderBrush="#666"
+                                                            BorderThickness="1"
+                                                            Background="{Binding TextBrush}"/>
+                                                    <TextBlock Text="{Binding SampleBody}"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
 
-                        <TextBlock x:Name="HotkeysLabel"
-                                   Margin="0,0,0,4"
-                                   FontWeight="SemiBold"/>
+                                <TextBlock x:Name="TranslationModeLabel"
+                                           Margin="0,10,0,4"
+                                           FontWeight="SemiBold"/>
+                                <ComboBox x:Name="TranslationModeCombo"
+                                          MinWidth="260"
+                                          SelectionChanged="TranslationMode_SelectionChanged"
+                                          DisplayMemberPath="DisplayName"/>
+                                <TextBlock x:Name="TranslationModeHint"
+                                           Margin="0,6,0,0"
+                                           TextWrapping="Wrap"
+                                           Foreground="#666"/>
 
-                        <ComboBox x:Name="HotKeyCombo"
-                                  MinWidth="280"
-                                  SelectionChanged="HotKeyCombo_SelectionChanged"
-                                  DisplayMemberPath="DisplayName"/>
+                                <TextBlock x:Name="TranslationSourceLabel"
+                                           Margin="0,8,0,4"
+                                           FontWeight="SemiBold"/>
 
-                        <TextBlock x:Name="HintText"
-                                   Margin="0,10,0,0"
-                                   TextWrapping="Wrap"
-                                   Foreground="#444"/>
+                                <ComboBox x:Name="TranslationSourceCombo"
+                                          MinWidth="240"
+                                          SelectionChanged="TranslationSource_SelectionChanged"
+                                          DisplayMemberPath="Name"/>
 
-                        <TextBlock x:Name="WarningText"
-                                   Margin="0,8,0,0"
-                                   TextWrapping="Wrap"
-                                   Foreground="#B00020"
-                                   Visibility="Collapsed"/>
+                                <TextBlock x:Name="TranslationTargetLabel"
+                                           Margin="0,8,0,4"
+                                           FontWeight="SemiBold"/>
+
+                                <ComboBox x:Name="TranslationTargetCombo"
+                                          MinWidth="240"
+                                          SelectionChanged="TranslationTarget_SelectionChanged"
+                                          DisplayMemberPath="Name"/>
+
+                                <Button x:Name="MoreLanguagesButton"
+                                        Margin="0,8,0,0"
+                                        Width="160"
+                                        HorizontalAlignment="Left"
+                                        Click="MoreLanguages_Click"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Margin="0,0,0,12">
+                            <GroupBox.Header>
+                                <TextBlock x:Name="TranslationConnectionHeaderText"
+                                           FontWeight="SemiBold"/>
+                            </GroupBox.Header>
+                            <StackPanel Margin="8">
+                                <TextBlock x:Name="TranslationProviderLabel"
+                                           Margin="0,0,0,4"
+                                           FontWeight="SemiBold"/>
+
+                                <ComboBox x:Name="TranslationProviderCombo"
+                                          MinWidth="240"
+                                          SelectionChanged="TranslationProvider_SelectionChanged"
+                                          DisplayMemberPath="DisplayName"/>
+
+                                <TextBlock x:Name="TranslationProjectLabel"
+                                           Margin="0,12,0,4"
+                                           FontWeight="SemiBold"/>
+
+                                <TextBox x:Name="TranslationProjectTextBox"
+                                         MinWidth="240"
+                                         TextChanged="TranslationProject_Changed"/>
+
+                                <TextBlock x:Name="TranslationApiKeyLabel"
+                                           Margin="0,12,0,4"
+                                           FontWeight="SemiBold"/>
+
+                                <TextBox x:Name="TranslationApiKeyTextBox"
+                                         MinWidth="240"
+                                         TextChanged="TranslationApiKey_Changed"/>
+
+                                <TextBlock x:Name="TranslationApiKeyWarning"
+                                           Margin="0,8,0,0"
+                                           TextWrapping="Wrap"
+                                           Foreground="#B00020"
+                                           Visibility="Collapsed"/>
+                            </StackPanel>
+                        </GroupBox>
                     </StackPanel>
-                </GroupBox>
+                </ScrollViewer>
+            </TabItem>
 
-                <GroupBox Margin="0,0,0,12">
-                    <GroupBox.Header>
-                        <TextBlock x:Name="OverlayHeaderText"
-                                   FontWeight="SemiBold"/>
-                    </GroupBox.Header>
-                    <StackPanel Margin="8">
-                        <TextBlock x:Name="OverlayOrientationLabel"
-                                   Margin="0,0,0,4"
-                                   FontWeight="SemiBold"/>
-                        <ComboBox x:Name="OverlayOrientationCombo"
-                                  MinWidth="240"
-                                  SelectionChanged="OverlayOrientation_SelectionChanged"
-                                  DisplayMemberPath="DisplayName"/>
+            <TabItem x:Name="OverlayTab">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="0,8,0,0">
+                        <GroupBox Margin="0,0,0,12">
+                            <GroupBox.Header>
+                                <TextBlock x:Name="OverlayHeaderText"
+                                           FontWeight="SemiBold"/>
+                            </GroupBox.Header>
+                            <StackPanel Margin="8">
+                                <TextBlock x:Name="OverlayOrientationLabel"
+                                           Margin="0,0,0,4"
+                                           FontWeight="SemiBold"/>
+                                <ComboBox x:Name="OverlayOrientationCombo"
+                                          MinWidth="240"
+                                          SelectionChanged="OverlayOrientation_SelectionChanged"
+                                          DisplayMemberPath="DisplayName"/>
+                                <TextBlock x:Name="OverlayOpacityLabel"
+                                           Margin="0,10,0,4"
+                                           FontWeight="SemiBold"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Slider x:Name="OverlayOpacitySlider"
+                                            Width="180"
+                                            Minimum="0.1"
+                                            Maximum="1"
+                                            SmallChange="0.01"
+                                            LargeChange="0.05"
+                                            ValueChanged="OverlayOpacity_Changed"/>
+                                    <TextBlock x:Name="OverlayOpacityValue"
+                                               Margin="8,0,0,0"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </GroupBox>
                     </StackPanel>
-                </GroupBox>
+                </ScrollViewer>
+            </TabItem>
 
-                <GroupBox Margin="0,0,0,12">
-                    <GroupBox.Header>
-                        <TextBlock x:Name="TranslationLanguageHeaderText"
-                                   FontWeight="SemiBold"/>
-                    </GroupBox.Header>
-                    <StackPanel Margin="8">
-                <CheckBox x:Name="TranslationEnabledCheckBox"
-                          Content="Translation"
-                          Checked="TranslationEnabled_Changed"
-                          Unchecked="TranslationEnabled_Changed"/>
-                <CheckBox x:Name="TranslationBoldCheckBox"
-                          Margin="0,6,0,0"
-                          Content="Bold translation"
-                          Checked="TranslationBold_Changed"
-                          Unchecked="TranslationBold_Changed"/>
+            <TabItem x:Name="AdvancedTab">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="0,8,0,0">
+                        <GroupBox>
+                            <GroupBox.Header>
+                                <TextBlock x:Name="ExperimentalHeaderText"
+                                           FontWeight="SemiBold"/>
+                            </GroupBox.Header>
+                            <StackPanel Margin="8">
+                                <CheckBox x:Name="ExperimentalModeCheckBox"
+                                          Content="Experimental"
+                                          Checked="ExperimentalMode_Changed"
+                                          Unchecked="ExperimentalMode_Changed"/>
 
-                <TextBlock x:Name="TranslationModeLabel"
-                           Margin="0,10,0,4"
-                           FontWeight="SemiBold"/>
-                <ComboBox x:Name="TranslationModeCombo"
-                          MinWidth="260"
-                          SelectionChanged="TranslationMode_SelectionChanged"
-                          DisplayMemberPath="DisplayName"/>
-                <TextBlock x:Name="TranslationModeHint"
-                           Margin="0,6,0,0"
-                           TextWrapping="Wrap"
-                           Foreground="#666"/>
+                                <TextBlock x:Name="ExperimentalWarningText"
+                                           Margin="0,8,0,0"
+                                           TextWrapping="Wrap"
+                                           Foreground="#B00020"
+                                           Visibility="Collapsed"/>
 
-                        <TextBlock x:Name="TranslationSourceLabel"
-                                   Margin="0,8,0,4"
-                                   FontWeight="SemiBold"/>
-
-                        <ComboBox x:Name="TranslationSourceCombo"
-                                  MinWidth="240"
-                                  SelectionChanged="TranslationSource_SelectionChanged"
-                                  DisplayMemberPath="Name"/>
-
-                        <TextBlock x:Name="TranslationTargetLabel"
-                                   Margin="0,8,0,4"
-                                   FontWeight="SemiBold"/>
-
-                        <ComboBox x:Name="TranslationTargetCombo"
-                                  MinWidth="240"
-                                  SelectionChanged="TranslationTarget_SelectionChanged"
-                                  DisplayMemberPath="Name"/>
-
-                        <Button x:Name="MoreLanguagesButton"
-                                Margin="0,8,0,0"
-                                Width="160"
-                                HorizontalAlignment="Left"
-                                Click="MoreLanguages_Click"/>
+                                <Button x:Name="OpenWelcomeButton"
+                                        Margin="0,12,0,0"
+                                        Width="220"
+                                        HorizontalAlignment="Left"
+                                        Click="OpenWelcome_Click"/>
+                                <Button x:Name="CheckUpdatesButton"
+                                        Margin="0,8,0,0"
+                                        Width="220"
+                                        HorizontalAlignment="Left"
+                                        Click="CheckUpdates_Click"/>
+                                <ProgressBar x:Name="CheckUpdatesProgress"
+                                             Margin="0,6,0,0"
+                                             Width="220"
+                                             Height="6"
+                                             IsIndeterminate="True"
+                                             Visibility="Collapsed"/>
+                            </StackPanel>
+                        </GroupBox>
                     </StackPanel>
-                </GroupBox>
-
-                <GroupBox Margin="0,0,0,12">
-                    <GroupBox.Header>
-                        <TextBlock x:Name="TranslationConnectionHeaderText"
-                                   FontWeight="SemiBold"/>
-                    </GroupBox.Header>
-                    <StackPanel Margin="8">
-                        <TextBlock x:Name="TranslationProviderLabel"
-                                   Margin="0,0,0,4"
-                                   FontWeight="SemiBold"/>
-
-                        <ComboBox x:Name="TranslationProviderCombo"
-                                  MinWidth="240"
-                                  SelectionChanged="TranslationProvider_SelectionChanged"
-                                  DisplayMemberPath="DisplayName"/>
-
-                        <TextBlock x:Name="TranslationProjectLabel"
-                                   Margin="0,12,0,4"
-                                   FontWeight="SemiBold"/>
-
-                        <TextBox x:Name="TranslationProjectTextBox"
-                                 MinWidth="240"
-                                 TextChanged="TranslationProject_Changed"/>
-
-                        <TextBlock x:Name="TranslationApiKeyLabel"
-                                   Margin="0,12,0,4"
-                                   FontWeight="SemiBold"/>
-
-                        <TextBox x:Name="TranslationApiKeyTextBox"
-                                 MinWidth="240"
-                                 TextChanged="TranslationApiKey_Changed"/>
-
-                        <TextBlock x:Name="TranslationApiKeyWarning"
-                                   Margin="0,8,0,0"
-                                   TextWrapping="Wrap"
-                                   Foreground="#B00020"
-                                   Visibility="Collapsed"/>
-                    </StackPanel>
-                </GroupBox>
-
-                <GroupBox>
-                    <GroupBox.Header>
-                        <TextBlock x:Name="ExperimentalHeaderText"
-                                   FontWeight="SemiBold"/>
-                    </GroupBox.Header>
-                    <StackPanel Margin="8">
-                        <CheckBox x:Name="ExperimentalModeCheckBox"
-                                  Content="Experimental"
-                                  Checked="ExperimentalMode_Changed"
-                                  Unchecked="ExperimentalMode_Changed"/>
-
-                        <TextBlock x:Name="ExperimentalWarningText"
-                                   Margin="0,8,0,0"
-                                   TextWrapping="Wrap"
-                                   Foreground="#B00020"
-                                   Visibility="Collapsed"/>
-
-                        <Button x:Name="OpenWelcomeButton"
-                                Margin="0,12,0,0"
-                                Width="220"
-                                HorizontalAlignment="Left"
-                                Click="OpenWelcome_Click"/>
-                        <Button x:Name="CheckUpdatesButton"
-                                Margin="0,8,0,0"
-                                Width="220"
-                                HorizontalAlignment="Left"
-                                Click="CheckUpdates_Click"/>
-                        <ProgressBar x:Name="CheckUpdatesProgress"
-                                     Margin="0,6,0,0"
-                                     Width="220"
-                                     Height="6"
-                                     IsIndeterminate="True"
-                                     Visibility="Collapsed"/>
-                    </StackPanel>
-                </GroupBox>
-            </StackPanel>
-        </ScrollViewer>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
     </DockPanel>
 </Window>
