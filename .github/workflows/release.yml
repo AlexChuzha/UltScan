@@ -14,6 +14,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       VELOPACK_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VPK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -45,10 +46,10 @@ jobs:
           "pack_version=$packVersion" >> $env:GITHUB_OUTPUT
 
       - name: Download previous releases (for delta packages)
-        run: vpk download github --repoUrl https://github.com/AlexChuzha/UltScan
+        run: vpk download github --repoUrl https://github.com/AlexChuzha/UltScan --token ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pack
         run: vpk pack --packId AlexChuzha.UltScan --packVersion ${{ steps.version.outputs.pack_version }} --packDir .\artifacts\publish --mainExe UltScan.exe
 
       - name: Upload to GitHub Release
-        run: vpk upload github --repoUrl https://github.com/AlexChuzha/UltScan --publish --releaseName "UltScan ${{ steps.version.outputs.version }}" --tag ${{ github.event.release.tag_name || format('v{0}', steps.version.outputs.version) }}
+        run: vpk upload github --repoUrl https://github.com/AlexChuzha/UltScan --token ${{ secrets.GITHUB_TOKEN }} --publish --releaseName "UltScan ${{ steps.version.outputs.version }}" --tag ${{ github.event.release.tag_name || format('v{0}', steps.version.outputs.version) }}
