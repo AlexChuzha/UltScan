@@ -32,6 +32,12 @@ jobs:
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk
 
+      - name: Verify GitHub token
+        shell: pwsh
+        run: |
+          if (-not $env:GITHUB_TOKEN) { throw "GITHUB_TOKEN is missing. Check Actions permissions." }
+          Write-Host "GITHUB_TOKEN present"
+
       - name: Read version
         id: version
         shell: pwsh
@@ -46,10 +52,10 @@ jobs:
           "pack_version=$packVersion" >> $env:GITHUB_OUTPUT
 
       - name: Download previous releases (for delta packages)
-        run: vpk download github --repoUrl https://github.com/AlexChuzha/UltScan --token ${{ secrets.GITHUB_TOKEN }}
+        run: vpk download github --repoUrl https://github.com/AlexChuzha/UltScan --token $env:GITHUB_TOKEN
 
       - name: Pack
         run: vpk pack --packId AlexChuzha.UltScan --packVersion ${{ steps.version.outputs.pack_version }} --packDir .\artifacts\publish --mainExe UltScan.exe
 
       - name: Upload to GitHub Release
-        run: vpk upload github --repoUrl https://github.com/AlexChuzha/UltScan --token ${{ secrets.GITHUB_TOKEN }} --publish --releaseName "UltScan ${{ steps.version.outputs.version }}" --tag ${{ github.event.release.tag_name || format('v{0}', steps.version.outputs.version) }}
+        run: vpk upload github --repoUrl https://github.com/AlexChuzha/UltScan --token $env:GITHUB_TOKEN --publish --releaseName "UltScan ${{ steps.version.outputs.version }}" --tag ${{ github.event.release.tag_name || format('v{0}', steps.version.outputs.version) }}
