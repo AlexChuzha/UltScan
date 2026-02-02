@@ -13,8 +13,8 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      VELOPACK_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      VPK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VELOPACK_GITHUB_TOKEN: ${{ secrets.VELOPACK_GITHUB_TOKEN }}
+      VPK_TOKEN: ${{ secrets.VELOPACK_GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,8 +35,8 @@ jobs:
       - name: Verify GitHub token
         shell: pwsh
         run: |
-          if (-not $env:GITHUB_TOKEN) { throw "GITHUB_TOKEN is missing. Check Actions permissions." }
-          Write-Host "GITHUB_TOKEN present"
+          if (-not $env:VELOPACK_GITHUB_TOKEN) { throw "VELOPACK_GITHUB_TOKEN is missing." }
+          Write-Host "VELOPACK_GITHUB_TOKEN present"
 
       - name: Read version
         id: version
@@ -52,10 +52,10 @@ jobs:
           "pack_version=$packVersion" >> $env:GITHUB_OUTPUT
 
       - name: Download previous releases (for delta packages)
-        run: vpk download github --repoUrl https://github.com/AlexChuzha/UltScan --token $env:GITHUB_TOKEN
+        run: vpk download github --repoUrl https://github.com/AlexChuzha/UltScan --token $env:VELOPACK_GITHUB_TOKEN
 
       - name: Pack
         run: vpk pack --packId AlexChuzha.UltScan --packVersion ${{ steps.version.outputs.pack_version }} --packDir .\artifacts\publish --mainExe UltScan.exe
 
       - name: Upload to GitHub Release
-        run: vpk upload github --repoUrl https://github.com/AlexChuzha/UltScan --token $env:GITHUB_TOKEN --publish --releaseName "UltScan ${{ steps.version.outputs.version }}" --tag ${{ github.event.release.tag_name || format('v{0}', steps.version.outputs.version) }}
+        run: vpk upload github --repoUrl https://github.com/AlexChuzha/UltScan --token $env:VELOPACK_GITHUB_TOKEN --publish --releaseName "UltScan ${{ steps.version.outputs.version }}" --tag ${{ github.event.release.tag_name || format('v{0}', steps.version.outputs.version) }}
