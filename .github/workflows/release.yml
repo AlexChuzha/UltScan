@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build-pack-upload:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore .\UltScan\UltScan.csproj
+
+      - name: Publish
+        run: dotnet publish .\UltScan\UltScan.csproj -c Release -r win-x64 -o .\artifacts\publish
+
+      - name: Install Velopack CLI
+        run: dotnet tool install -g vpk
+
+      - name: Read version
+        id: version
+        shell: pwsh
+        run: |
+          [xml]$csproj = Get-Content .\UltScan\UltScan.csproj
+          $version = $csproj.Project.PropertyGroup.Version
+          if (-not $version) { throw 'Version not found in UltScan.csproj' }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Download previous releases (for delta packages)
+        run: vpk download github --repoUrl https://github.com/AlexChuzha/UltScan
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pack
+        run: vpk pack --packId AlexChuzha.UltScan --packVersion ${{ steps.version.outputs.version }} --packDir .\artifacts\publish --mainExe UltScan.exe
+
+      - name: Upload to GitHub Release
+        run: vpk upload github --repoUrl https://github.com/AlexChuzha/UltScan --publish --releaseName "UltScan ${{ steps.version.outputs.version }}" --tag ${{ github.event.release.tag_name || format('v{0}', steps.version.outputs.version) }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

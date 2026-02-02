@@ -13,6 +13,7 @@ public partial class SettingsWindow : Window
     private bool _suppressTranslationChange;
     private bool _suppressAutoStartChange;
     private bool _showAllLanguages;
+    private bool _isCheckingUpdates;
     private readonly ProviderOption[] _providerOptions;
     private readonly OverlayOption[] _overlayOptions;
     private readonly ModeOption[] _modeOptions;
@@ -279,6 +280,7 @@ public partial class SettingsWindow : Window
         ExperimentalModeCheckBox.Content = _loc["Settings.ExperimentalMode"];
         ExperimentalWarningText.Text = _loc["Settings.ExperimentalWarning"];
         OpenWelcomeButton.Content = _loc["Settings.OpenWelcome"];
+        CheckUpdatesButton.Content = _loc["Settings.CheckUpdates"];
         SaveButton.Content = _loc["Settings.Save"];
         CancelButton.Content = _loc["Settings.Cancel"];
         TranslationEnabledCheckBox.Content = _loc["Settings.TranslationEnabled"];
@@ -434,6 +436,31 @@ public partial class SettingsWindow : Window
         var app = (App)System.Windows.Application.Current;
         var welcome = new WelcomeWindow();
         welcome.ShowDialog();
+    }
+
+    private async void CheckUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isCheckingUpdates)
+        {
+            return;
+        }
+
+        _isCheckingUpdates = true;
+        CheckUpdatesButton.IsEnabled = false;
+        CheckUpdatesButton.Content = _loc["Settings.CheckingUpdates"];
+        CheckUpdatesProgress.Visibility = Visibility.Visible;
+
+        try
+        {
+            await _app.CheckForUpdatesAsync(showNoUpdates: true);
+        }
+        finally
+        {
+            _isCheckingUpdates = false;
+            CheckUpdatesButton.IsEnabled = true;
+            CheckUpdatesButton.Content = _loc["Settings.CheckUpdates"];
+            CheckUpdatesProgress.Visibility = Visibility.Collapsed;
+        }
     }
 
     private void UpdateTranslationApiFields()

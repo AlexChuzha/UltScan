@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Drawing;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
+using Velopack;
+using Velopack.Sources;
 using Forms = System.Windows.Forms;
 
 namespace UltScan
@@ -29,6 +32,15 @@ namespace UltScan
         public IReadOnlyList<HotKeyPreset> HotKeyPresetList => HotKeyPresets.All;
         public LocalizationService Localization { get; private set; } = new();
 
+        [STAThread]
+        public static void Main(string[] args)
+        {
+            VelopackApp.Build().Run();
+            var app = new App();
+            app.InitializeComponent();
+            app.Run();
+        }
+
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
@@ -44,6 +56,8 @@ namespace UltScan
 
             CreateMessageWindowForHotKeys();
             RegisterGlobalHotKey();
+
+            _ = CheckForUpdatesAsync(showNoUpdates: false);
 
             if (isFirstRun)
             {
@@ -113,6 +127,54 @@ namespace UltScan
         private void ApplyAutoStartSetting()
         {
             StartupManager.SetEnabled(Settings.AutoStart);
+        }
+
+        public async Task CheckForUpdatesAsync(bool showNoUpdates)
+        {
+            try
+            {
+                var manager = new UpdateManager(new GithubSource("https://github.com/AlexChuzha/UltScan", accessToken: null, prerelease: false));
+                if (!manager.IsInstalled)
+                {
+                    return;
+                }
+
+                var update = await manager.CheckForUpdatesAsync();
+                if (update == null)
+                {
+                    if (showNoUpdates)
+                    {
+                        System.Windows.MessageBox.Show(
+                            Localization["Update.None"],
+                            Localization["Message.Title"],
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    }
+                    return;
+                }
+
+                var result = System.Windows.MessageBox.Show(
+                    Localization["Update.Available"],
+                    Localization["Message.Title"],
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Information);
+
+                if (result != MessageBoxResult.Yes)
+                {
+                    return;
+                }
+
+                await manager.DownloadUpdatesAsync(update);
+                manager.ApplyUpdatesAndRestart(update);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    string.Format(Localization["Update.Failed"], ex.Message),
+                    Localization["Message.Title"],
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
         }
 
         private void CreateMessageWindowForHotKeys()
