@@ -14,6 +14,10 @@ public partial class SettingsWindow : Window
 {
     private readonly App _app;
     private readonly LocalizationService _loc;
+    private AppSettings _pendingSettings;
+    private AppSettings _originalSettings;
+    private bool _hasUnsavedChanges;
+    private bool _suppressDirty;
     private bool _suppressLocaleChange;
     private bool _suppressTranslationChange;
     private bool _suppressAutoStartChange;
@@ -30,10 +34,13 @@ public partial class SettingsWindow : Window
     {
         _app = (App)System.Windows.Application.Current;
         _loc = _app.Localization;
+        _originalSettings = CloneSettings(_app.Settings);
+        _pendingSettings = CloneSettings(_app.Settings);
         _suppressOverlayChange = true;
         _suppressAppearanceChange = true;
 
         InitializeComponent();
+        ApplyButton.IsEnabled = false;
         _providerOptions = new[]
         {
             new ProviderOption(TranslationService.ProviderApi, "Settings.TranslationProviderApi"),
@@ -65,6 +72,9 @@ public partial class SettingsWindow : Window
         RefreshLocalization();
         _suppressOverlayChange = false;
         _suppressAppearanceChange = false;
+
+        PreviewKeyDown += SettingsWindow_PreviewKeyDown;
+        Closing += SettingsWindow_Closing;
     }
 
     private void HotKeyCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -72,6 +82,7 @@ public partial class SettingsWindow : Window
         if (HotKeyCombo.SelectedItem is HotKeyPresetItem item)
         {
             UpdateHotKeyTexts(item.Preset);
+            MarkDirty();
         }
     }
 
@@ -119,11 +130,11 @@ public partial class SettingsWindow : Window
             return false;
         }
 
-        _app.Settings.HotKey = config;
-        _app.Settings.Save();
-        _app.UpdateTrayMenuText();
-        _app.ApplyOverlayAppearance();
-        _ = _app.ForceOverlayTranslationAsync();
+        _pendingSettings.HotKey = config;
+        ApplyPendingSettings();
+        _originalSettings = CloneSettings(_pendingSettings);
+        _hasUnsavedChanges = false;
+        ApplyButton.IsEnabled = false;
         return true;
     }
 
@@ -139,9 +150,9 @@ public partial class SettingsWindow : Window
             return;
         }
 
+        _pendingSettings.LocaleId = option.Id;
         _app.Localization.SetLocale(option.Id);
-        _app.Settings.LocaleId = option.Id;
-        _app.Settings.Save();
+        MarkDirty();
     }
 
     private void AutoStart_Changed(object sender, RoutedEventArgs e)
@@ -151,17 +162,8 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        var enabled = AutoStartCheckBox.IsChecked.Value;
-        if (!StartupManager.SetEnabled(enabled))
-        {
-            _suppressAutoStartChange = true;
-            AutoStartCheckBox.IsChecked = _app.Settings.AutoStart;
-            _suppressAutoStartChange = false;
-            return;
-        }
-
-        _app.Settings.AutoStart = enabled;
-        _app.Settings.Save();
+        _pendingSettings.AutoStart = AutoStartCheckBox.IsChecked.Value;
+        MarkDirty();
     }
 
     private void TranslationEnabled_Changed(object sender, RoutedEventArgs e)
@@ -171,9 +173,9 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        _app.Settings.Translation.Enabled = TranslationEnabledCheckBox.IsChecked.Value;
-        _app.Settings.Save();
+        _pendingSettings.Translation.Enabled = TranslationEnabledCheckBox.IsChecked.Value;
         UpdateTranslationWarnings();
+        MarkDirty();
     }
 
     private void TranslationBold_Changed(object sender, RoutedEventArgs e)
@@ -183,8 +185,8 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        _app.Settings.Translation.TranslatedBold = TranslationBoldCheckBox.IsChecked.Value;
-        _app.Settings.Save();
+        _pendingSettings.Translation.TranslatedBold = TranslationBoldCheckBox.IsChecked.Value;
+        MarkDirty();
     }
 
     private void TranslationColor_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -199,9 +201,9 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        _app.Settings.Translation.CaptionTextColor = option.CaptionHex;
-        _app.Settings.Translation.TranslatedTextColor = option.TextHex;
-        _app.Settings.Save();
+        _pendingSettings.Translation.CaptionTextColor = option.CaptionHex;
+        _pendingSettings.Translation.TranslatedTextColor = option.TextHex;
+        MarkDirty();
     }
 
     private void TranslationMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -216,9 +218,9 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        _app.Settings.Translation.Mode = option.Value;
-        _app.Settings.Save();
+        _pendingSettings.Translation.Mode = option.Value;
         TranslationModeHint.Text = _loc[option.HintKey];
+        MarkDirty();
     }
 
     private void TranslationSource_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -233,8 +235,8 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        _app.Settings.Translation.SourceLanguage = option.Code;
-        _app.Settings.Save();
+        _pendingSettings.Translation.SourceLanguage = option.Code;
+        MarkDirty();
     }
 
     private void TranslationTarget_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -249,22 +251,22 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        _app.Settings.Translation.TargetLanguage = option.Code;
-        _app.Settings.Save();
+        _pendingSettings.Translation.TargetLanguage = option.Code;
+        MarkDirty();
     }
 
     private void TranslationProject_Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
     {
-        _app.Settings.Translation.ProjectId = TranslationProjectTextBox.Text.Trim();
-        _app.Settings.Save();
+        _pendingSettings.Translation.ProjectId = TranslationProjectTextBox.Text.Trim();
         UpdateTranslationWarnings();
+        MarkDirty();
     }
 
     private void TranslationApiKey_Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
     {
-        _app.Settings.Translation.ApiKey = TranslationApiKeyTextBox.Text.Trim();
-        _app.Settings.Save();
+        _pendingSettings.Translation.ApiKey = TranslationApiKeyTextBox.Text.Trim();
         UpdateTranslationWarnings();
+        MarkDirty();
     }
 
     private void MoreLanguages_Click(object sender, RoutedEventArgs e)
@@ -285,10 +287,10 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        _app.Settings.Translation.Provider = option.Id;
-        _app.Settings.Save();
+        _pendingSettings.Translation.Provider = option.Id;
         UpdateTranslationWarnings();
         UpdateTranslationApiFields();
+        MarkDirty();
     }
 
     private void OverlayOrientation_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -303,8 +305,8 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        _app.Settings.Overlay.Orientation = option.Value;
-        _app.Settings.Save();
+        _pendingSettings.Overlay.Orientation = option.Value;
+        MarkDirty();
     }
 
     private void OverlayOpacity_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -315,9 +317,9 @@ public partial class SettingsWindow : Window
         }
 
         var value = Math.Clamp(e.NewValue, 0.1, 1.0);
-        _app.Settings.Overlay.Opacity = value;
-        _app.Settings.Save();
+        _pendingSettings.Overlay.Opacity = value;
         OverlayOpacityValue.Text = $"{(int)Math.Round(value * 100)}%";
+        MarkDirty();
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
@@ -332,9 +334,9 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        _app.Settings.ExperimentalMode = ExperimentalModeCheckBox.IsChecked.Value;
-        _app.Settings.Save();
+        _pendingSettings.ExperimentalMode = ExperimentalModeCheckBox.IsChecked.Value;
         UpdateExperimentalWarning();
+        MarkDirty();
     }
 
     private void ExperimentalPreprocess_Changed(object sender, RoutedEventArgs e)
@@ -344,12 +346,13 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        _app.Settings.ExperimentalImagePreprocessing = ExperimentalPreprocessCheckBox.IsChecked.Value;
-        _app.Settings.Save();
+        _pendingSettings.ExperimentalImagePreprocessing = ExperimentalPreprocessCheckBox.IsChecked.Value;
+        MarkDirty();
     }
 
     public void RefreshLocalization()
     {
+        _suppressDirty = true;
         Title = _loc["Settings.Title"];
         GeneralTab.Header = _loc["Settings.TabGeneral"];
         TranslationTab.Header = _loc["Settings.TabTranslation"];
@@ -392,18 +395,18 @@ public partial class SettingsWindow : Window
         RebuildTranslationLanguageLists();
 
         _suppressLocaleChange = true;
-        var localeId = _app.Localization.CurrentLocaleId;
+        var localeId = _pendingSettings.LocaleId;
         LocaleCombo.SelectedItem = _loc.Locales.FirstOrDefault(l => l.Id == localeId) ?? _loc.Locales.FirstOrDefault();
         _suppressLocaleChange = false;
 
         _suppressAutoStartChange = true;
-        AutoStartCheckBox.IsChecked = _app.Settings.AutoStart;
+        AutoStartCheckBox.IsChecked = _pendingSettings.AutoStart;
         _suppressAutoStartChange = false;
 
-        ExperimentalModeCheckBox.IsChecked = _app.Settings.ExperimentalMode;
-        ExperimentalPreprocessCheckBox.IsChecked = _app.Settings.ExperimentalImagePreprocessing;
-        TranslationEnabledCheckBox.IsChecked = _app.Settings.Translation.Enabled;
-        TranslationBoldCheckBox.IsChecked = _app.Settings.Translation.TranslatedBold;
+        ExperimentalModeCheckBox.IsChecked = _pendingSettings.ExperimentalMode;
+        ExperimentalPreprocessCheckBox.IsChecked = _pendingSettings.ExperimentalImagePreprocessing;
+        TranslationEnabledCheckBox.IsChecked = _pendingSettings.Translation.Enabled;
+        TranslationBoldCheckBox.IsChecked = _pendingSettings.Translation.TranslatedBold;
         _suppressAppearanceChange = true;
         var sampleCaption = _loc["Settings.TranslationThemeSampleCaption"];
         var sampleBody = _loc["Settings.TranslationThemeSampleBody"];
@@ -418,8 +421,8 @@ public partial class SettingsWindow : Window
             })
             .ToList();
 
-        var currentCaption = _app.Settings.Translation.CaptionTextColor;
-        var currentText = _app.Settings.Translation.TranslatedTextColor;
+        var currentCaption = _pendingSettings.Translation.CaptionTextColor;
+        var currentText = _pendingSettings.Translation.TranslatedTextColor;
         var selectedTheme = themeItems.FirstOrDefault(o =>
             string.Equals(o.CaptionHex, currentCaption, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(o.TextHex, currentText, StringComparison.OrdinalIgnoreCase));
@@ -442,22 +445,23 @@ public partial class SettingsWindow : Window
         TranslationColorCombo.SelectedItem = selectedTheme ?? themeItems.FirstOrDefault();
         _suppressAppearanceChange = false;
         RebuildTranslationModes();
-        TranslationProjectTextBox.Text = _app.Settings.Translation.ProjectId;
-        TranslationApiKeyTextBox.Text = _app.Settings.Translation.ApiKey;
+        TranslationProjectTextBox.Text = _pendingSettings.Translation.ProjectId;
+        TranslationApiKeyTextBox.Text = _pendingSettings.Translation.ApiKey;
         UpdateExperimentalWarning();
         UpdateTranslationWarnings();
         UpdateTranslationApiFields();
         RebuildOverlayOptions();
 
         _suppressOverlayChange = true;
-        OverlayOpacitySlider.Value = Math.Clamp(_app.Settings.Overlay.Opacity, 0.1, 1.0);
+        OverlayOpacitySlider.Value = Math.Clamp(_pendingSettings.Overlay.Opacity, 0.1, 1.0);
         OverlayOpacityValue.Text = $"{(int)Math.Round(OverlayOpacitySlider.Value * 100)}%";
         _suppressOverlayChange = false;
+        _suppressDirty = false;
     }
 
     private void UpdateExperimentalWarning()
     {
-        ExperimentalWarningText.Visibility = _app.Settings.ExperimentalMode
+        ExperimentalWarningText.Visibility = _pendingSettings.ExperimentalMode
             ? Visibility.Visible
             : Visibility.Collapsed;
     }
@@ -469,7 +473,7 @@ public partial class SettingsWindow : Window
             .ToList();
 
         HotKeyCombo.ItemsSource = items;
-        var currentId = _app.Settings.HotKey.Id;
+        var currentId = _pendingSettings.HotKey.Id;
         HotKeyCombo.SelectedItem = items.FirstOrDefault(i => i.Preset.Id == currentId) ?? items.FirstOrDefault();
         if (HotKeyCombo.SelectedItem is HotKeyPresetItem item)
         {
@@ -487,11 +491,11 @@ public partial class SettingsWindow : Window
         TranslationSourceCombo.ItemsSource = sourceList;
         TranslationTargetCombo.ItemsSource = targetList;
 
-        var sourceCode = string.IsNullOrWhiteSpace(_app.Settings.Translation.SourceLanguage)
+        var sourceCode = string.IsNullOrWhiteSpace(_pendingSettings.Translation.SourceLanguage)
             ? "auto"
-            : _app.Settings.Translation.SourceLanguage;
+            : _pendingSettings.Translation.SourceLanguage;
 
-        var targetCode = _app.Settings.Translation.TargetLanguage;
+        var targetCode = _pendingSettings.Translation.TargetLanguage;
 
         EnsureSelectedLanguage(sourceList, sourceCode, includeAuto: true);
         EnsureSelectedLanguage(targetList, targetCode, includeAuto: false);
@@ -506,7 +510,7 @@ public partial class SettingsWindow : Window
             .ToList();
         TranslationProviderCombo.SelectedItem = TranslationProviderCombo.ItemsSource
             .Cast<ProviderOption>()
-            .FirstOrDefault(p => p.Id == _app.Settings.Translation.Provider)
+            .FirstOrDefault(p => p.Id == _pendingSettings.Translation.Provider)
             ?? TranslationProviderCombo.ItemsSource.Cast<ProviderOption>().FirstOrDefault();
 
         MoreLanguagesButton.Content = _showAllLanguages
@@ -556,7 +560,7 @@ public partial class SettingsWindow : Window
 
         TranslationModeCombo.SelectedItem = TranslationModeCombo.ItemsSource
             .Cast<ModeOption>()
-            .FirstOrDefault(m => m.Value == _app.Settings.Translation.Mode)
+            .FirstOrDefault(m => m.Value == _pendingSettings.Translation.Mode)
             ?? TranslationModeCombo.ItemsSource.Cast<ModeOption>().FirstOrDefault();
 
         if (TranslationModeCombo.SelectedItem is ModeOption selected)
@@ -569,11 +573,11 @@ public partial class SettingsWindow : Window
 
     private void UpdateTranslationWarnings()
     {
-        var isApi = string.Equals(_app.Settings.Translation.Provider, TranslationService.ProviderApi, StringComparison.OrdinalIgnoreCase);
-        var keyMissing = string.IsNullOrWhiteSpace(_app.Settings.Translation.ApiKey)
+        var isApi = string.Equals(_pendingSettings.Translation.Provider, TranslationService.ProviderApi, StringComparison.OrdinalIgnoreCase);
+        var keyMissing = string.IsNullOrWhiteSpace(_pendingSettings.Translation.ApiKey)
             && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(TranslationService.ApiKeyEnvName));
-        var projectMissing = string.IsNullOrWhiteSpace(_app.Settings.Translation.ProjectId);
-        var showWarning = _app.Settings.Translation.Enabled && isApi && (keyMissing || projectMissing);
+        var projectMissing = string.IsNullOrWhiteSpace(_pendingSettings.Translation.ProjectId);
+        var showWarning = _pendingSettings.Translation.Enabled && isApi && (keyMissing || projectMissing);
 
         TranslationApiKeyWarning.Visibility = showWarning ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -588,7 +592,7 @@ public partial class SettingsWindow : Window
 
         OverlayOrientationCombo.SelectedItem = OverlayOrientationCombo.ItemsSource
             .Cast<OverlayOption>()
-            .FirstOrDefault(o => o.Value == _app.Settings.Overlay.Orientation)
+            .FirstOrDefault(o => o.Value == _pendingSettings.Overlay.Orientation)
             ?? OverlayOrientationCombo.ItemsSource.Cast<OverlayOption>().FirstOrDefault();
 
         _suppressOverlayChange = false;
@@ -652,11 +656,123 @@ public partial class SettingsWindow : Window
 
     private void UpdateTranslationApiFields()
     {
-        var isApi = string.Equals(_app.Settings.Translation.Provider, TranslationService.ProviderApi, StringComparison.OrdinalIgnoreCase);
+        var isApi = string.Equals(_pendingSettings.Translation.Provider, TranslationService.ProviderApi, StringComparison.OrdinalIgnoreCase);
         TranslationProjectLabel.IsEnabled = isApi;
         TranslationProjectTextBox.IsEnabled = isApi;
         TranslationApiKeyLabel.IsEnabled = isApi;
         TranslationApiKeyTextBox.IsEnabled = isApi;
+    }
+
+    private void MarkDirty()
+    {
+        if (_suppressDirty)
+        {
+            return;
+        }
+
+        _hasUnsavedChanges = true;
+        ApplyButton.IsEnabled = true;
+    }
+
+    private void ApplyPendingSettings()
+    {
+        if (!StartupManager.SetEnabled(_pendingSettings.AutoStart))
+        {
+            _suppressAutoStartChange = true;
+            AutoStartCheckBox.IsChecked = _originalSettings.AutoStart;
+            _pendingSettings.AutoStart = _originalSettings.AutoStart;
+            _suppressAutoStartChange = false;
+        }
+
+        _app.Localization.SetLocale(_pendingSettings.LocaleId);
+        CopySettings(_app.Settings, _pendingSettings);
+        _app.Settings.Save();
+        _app.UpdateTrayMenuText();
+        _app.ApplyOverlayAppearance();
+        _ = _app.ForceOverlayTranslationAsync();
+    }
+
+    private static AppSettings CloneSettings(AppSettings source)
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(source);
+        var clone = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(json);
+        return clone ?? AppSettings.Default;
+    }
+
+    private static void CopySettings(AppSettings target, AppSettings source)
+    {
+        target.HotKey = new HotKeyConfig
+        {
+            Id = source.HotKey.Id,
+            Modifiers = source.HotKey.Modifiers,
+            VirtualKey = source.HotKey.VirtualKey
+        };
+        target.LocaleId = source.LocaleId;
+        target.AutoStart = source.AutoStart;
+        target.ExperimentalMode = source.ExperimentalMode;
+        target.ExperimentalImagePreprocessing = source.ExperimentalImagePreprocessing;
+        target.Overlay = new OverlaySettings
+        {
+            Orientation = source.Overlay.Orientation,
+            Opacity = source.Overlay.Opacity
+        };
+        target.Translation = new TranslationSettings
+        {
+            Enabled = source.Translation.Enabled,
+            TranslatedBold = source.Translation.TranslatedBold,
+            TranslatedTextColor = source.Translation.TranslatedTextColor,
+            CaptionTextColor = source.Translation.CaptionTextColor,
+            Mode = source.Translation.Mode,
+            SourceLanguage = source.Translation.SourceLanguage,
+            TargetLanguage = source.Translation.TargetLanguage,
+            StabilizationMs = source.Translation.StabilizationMs,
+            MinChangeRatio = source.Translation.MinChangeRatio,
+            PollIntervalMs = source.Translation.PollIntervalMs,
+            ProjectId = source.Translation.ProjectId,
+            ApiKey = source.Translation.ApiKey,
+            Provider = source.Translation.Provider
+        };
+    }
+
+    private void SettingsWindow_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Escape)
+        {
+            e.Handled = true;
+            Close();
+        }
+    }
+
+    private void SettingsWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (!_hasUnsavedChanges)
+        {
+            return;
+        }
+
+        var result = System.Windows.MessageBox.Show(
+            _loc["Message.SettingsUnsaved"],
+            _loc["Message.Title"],
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Warning);
+
+        if (result == MessageBoxResult.Yes)
+        {
+            if (!TryApplySettings())
+            {
+                e.Cancel = true;
+                return;
+            }
+        }
+        else if (result == MessageBoxResult.Cancel)
+        {
+            e.Cancel = true;
+        }
+        else
+        {
+            _pendingSettings = CloneSettings(_originalSettings);
+            _app.Localization.SetLocale(_originalSettings.LocaleId);
+        }
     }
 
     private sealed class ProviderOption

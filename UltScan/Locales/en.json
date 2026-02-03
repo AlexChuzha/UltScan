@@ -8,6 +8,7 @@
     "App.Tray.CloseOverlay": "Close overlay",
     "App.Tray.Exit": "Exit",
     "Message.Title": "UltScan",
+    "Message.SettingsUnsaved": "Settings have unsaved changes. Save before closing?",
     "Message.HotKeyRegisterFail": "Failed to register the hotkey. It may be used by another app.\n\n{0}",
     "Main.CaptureHint": "UltScan: drag to select an area. Esc cancels.",
     "Settings.Title": "Settings",

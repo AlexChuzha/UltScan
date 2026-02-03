@@ -91,13 +91,45 @@
                                           Content="Translation"
                                           Checked="TranslationEnabled_Changed"
                                           Unchecked="TranslationEnabled_Changed"/>
-                                <CheckBox x:Name="TranslationBoldCheckBox"
-                                          Margin="0,6,0,0"
-                                          Content="Bold translation"
-                                          Checked="TranslationBold_Changed"
-                                          Unchecked="TranslationBold_Changed"/>
-                                <TextBlock x:Name="TranslationColorLabel"
+
+                                <TextBlock x:Name="TranslationModeLabel"
                                            Margin="0,10,0,4"
+                                           FontWeight="SemiBold"/>
+                                <ComboBox x:Name="TranslationModeCombo"
+                                          MinWidth="260"
+                                          SelectionChanged="TranslationMode_SelectionChanged"
+                                          DisplayMemberPath="DisplayName"/>
+                                <TextBlock x:Name="TranslationModeHint"
+                                           Margin="0,6,0,0"
+                                           TextWrapping="Wrap"
+                                           Foreground="#666"/>
+
+                                <TextBlock x:Name="TranslationSourceLabel"
+                                           Margin="0,10,0,4"
+                                           FontWeight="SemiBold"/>
+
+                                <ComboBox x:Name="TranslationSourceCombo"
+                                          MinWidth="240"
+                                          SelectionChanged="TranslationSource_SelectionChanged"
+                                          DisplayMemberPath="Name"/>
+
+                                <TextBlock x:Name="TranslationTargetLabel"
+                                           Margin="0,8,0,4"
+                                           FontWeight="SemiBold"/>
+
+                                <ComboBox x:Name="TranslationTargetCombo"
+                                          MinWidth="240"
+                                          SelectionChanged="TranslationTarget_SelectionChanged"
+                                          DisplayMemberPath="Name"/>
+
+                                <Button x:Name="MoreLanguagesButton"
+                                        Margin="0,8,0,0"
+                                        Width="160"
+                                        HorizontalAlignment="Left"
+                                        Click="MoreLanguages_Click"/>
+
+                                <TextBlock x:Name="TranslationColorLabel"
+                                           Margin="0,12,0,4"
                                            FontWeight="SemiBold"/>
                                 <ComboBox x:Name="TranslationColorCombo"
                                           MinWidth="240"
@@ -131,42 +163,11 @@
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
-
-                                <TextBlock x:Name="TranslationModeLabel"
-                                           Margin="0,10,0,4"
-                                           FontWeight="SemiBold"/>
-                                <ComboBox x:Name="TranslationModeCombo"
-                                          MinWidth="260"
-                                          SelectionChanged="TranslationMode_SelectionChanged"
-                                          DisplayMemberPath="DisplayName"/>
-                                <TextBlock x:Name="TranslationModeHint"
-                                           Margin="0,6,0,0"
-                                           TextWrapping="Wrap"
-                                           Foreground="#666"/>
-
-                                <TextBlock x:Name="TranslationSourceLabel"
-                                           Margin="0,8,0,4"
-                                           FontWeight="SemiBold"/>
-
-                                <ComboBox x:Name="TranslationSourceCombo"
-                                          MinWidth="240"
-                                          SelectionChanged="TranslationSource_SelectionChanged"
-                                          DisplayMemberPath="Name"/>
-
-                                <TextBlock x:Name="TranslationTargetLabel"
-                                           Margin="0,8,0,4"
-                                           FontWeight="SemiBold"/>
-
-                                <ComboBox x:Name="TranslationTargetCombo"
-                                          MinWidth="240"
-                                          SelectionChanged="TranslationTarget_SelectionChanged"
-                                          DisplayMemberPath="Name"/>
-
-                                <Button x:Name="MoreLanguagesButton"
-                                        Margin="0,8,0,0"
-                                        Width="160"
-                                        HorizontalAlignment="Left"
-                                        Click="MoreLanguages_Click"/>
+                                <CheckBox x:Name="TranslationBoldCheckBox"
+                                          Margin="0,8,0,0"
+                                          Content="Bold translation"
+                                          Checked="TranslationBold_Changed"
+                                          Unchecked="TranslationBold_Changed"/>
                             </StackPanel>
                         </GroupBox>
 
