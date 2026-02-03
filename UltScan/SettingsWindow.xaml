@@ -96,12 +96,12 @@
                                           Content="Bold translation"
                                           Checked="TranslationBold_Changed"
                                           Unchecked="TranslationBold_Changed"/>
-                <TextBlock x:Name="TranslationColorLabel"
-                           Margin="0,10,0,4"
-                           FontWeight="SemiBold"/>
-                <ComboBox x:Name="TranslationColorCombo"
-                          MinWidth="240"
-                          SelectionChanged="TranslationColor_SelectionChanged">
+                                <TextBlock x:Name="TranslationColorLabel"
+                                           Margin="0,10,0,4"
+                                           FontWeight="SemiBold"/>
+                                <ComboBox x:Name="TranslationColorCombo"
+                                          MinWidth="240"
+                                          SelectionChanged="TranslationColor_SelectionChanged">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel>
@@ -130,15 +130,11 @@
                                             </StackPanel>
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
-                </ComboBox>
-                <CheckBox x:Name="TranslationOriginalColorCheckBox"
-                          Margin="0,8,0,0"
-                          Checked="TranslationOriginalColor_Changed"
-                          Unchecked="TranslationOriginalColor_Changed"/>
+                                </ComboBox>
 
-                <TextBlock x:Name="TranslationModeLabel"
-                           Margin="0,10,0,4"
-                           FontWeight="SemiBold"/>
+                                <TextBlock x:Name="TranslationModeLabel"
+                                           Margin="0,10,0,4"
+                                           FontWeight="SemiBold"/>
                                 <ComboBox x:Name="TranslationModeCombo"
                                           MinWidth="260"
                                           SelectionChanged="TranslationMode_SelectionChanged"

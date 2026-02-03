@@ -204,18 +204,6 @@ public partial class SettingsWindow : Window
         _app.Settings.Save();
     }
 
-    private void TranslationOriginalColor_Changed(object sender, RoutedEventArgs e)
-    {
-        if (_suppressAppearanceChange || TranslationOriginalColorCheckBox.IsChecked == null)
-        {
-            return;
-        }
-
-        _app.Settings.Translation.UseOriginalTextColor = TranslationOriginalColorCheckBox.IsChecked.Value;
-        _app.Settings.Save();
-        UpdateTranslationThemeState();
-    }
-
     private void TranslationMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_suppressTranslationChange)
@@ -371,7 +359,6 @@ public partial class SettingsWindow : Window
         TranslationEnabledCheckBox.Content = _loc["Settings.TranslationEnabled"];
         TranslationBoldCheckBox.Content = _loc["Settings.TranslationBold"];
         TranslationColorLabel.Text = _loc["Settings.TranslationTextColor"];
-        TranslationOriginalColorCheckBox.Content = _loc["Settings.TranslationOriginalColor"];
         TranslationModeLabel.Text = _loc["Settings.TranslationMode"];
         TranslationSourceLabel.Text = _loc["Settings.TranslationSource"];
         TranslationTargetLabel.Text = _loc["Settings.TranslationTarget"];
@@ -439,8 +426,6 @@ public partial class SettingsWindow : Window
 
         TranslationColorCombo.ItemsSource = themeItems;
         TranslationColorCombo.SelectedItem = selectedTheme ?? themeItems.FirstOrDefault();
-        TranslationOriginalColorCheckBox.IsChecked = _app.Settings.Translation.UseOriginalTextColor;
-        UpdateTranslationThemeState();
         _suppressAppearanceChange = false;
         RebuildTranslationModes();
         TranslationProjectTextBox.Text = _app.Settings.Translation.ProjectId;
@@ -566,12 +551,6 @@ public partial class SettingsWindow : Window
         }
 
         _suppressTranslationChange = false;
-    }
-
-    private void UpdateTranslationThemeState()
-    {
-        var useOriginal = _app.Settings.Translation.UseOriginalTextColor;
-        TranslationColorCombo.IsEnabled = !useOriginal;
     }
 
     private void UpdateTranslationWarnings()
