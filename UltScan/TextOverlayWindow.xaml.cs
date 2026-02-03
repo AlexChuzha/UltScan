@@ -12,6 +12,7 @@ namespace UltScan;
 
 public partial class TextOverlayWindow : Window
 {
+    private const double PlatePadding = 12;
     private Rect _captureRect;
     private System.Windows.Media.Brush _defaultBackground = System.Windows.Media.Brushes.Transparent;
     private System.Windows.Media.Brush _defaultOverlayBackground = System.Windows.Media.Brushes.Transparent;
@@ -266,32 +267,66 @@ public partial class TextOverlayWindow : Window
     {
         var captureWidth = _captureRect.Width;
         var captureHeight = _captureRect.Height;
-        var windowHeight = Math.Max(captureHeight, translationHeight);
-        var windowWidth = Math.Max(captureWidth, translationWidth);
+        var pad = PlatePadding;
 
-        return orientation switch
+        var padLeft = 0.0;
+        var padTop = 0.0;
+        var padRight = 0.0;
+        var padBottom = 0.0;
+
+        switch (orientation)
         {
-            OverlayOrientation.Left => (
-                new Rect(_captureRect.Left - translationWidth, _captureRect.Top, captureWidth + translationWidth, windowHeight),
-                new Rect(translationWidth, 0, captureWidth, captureHeight),
-                new Rect(0, 0, translationWidth, translationHeight)
-            ),
-            OverlayOrientation.Bottom => (
-                new Rect(_captureRect.Left, _captureRect.Top, windowWidth, captureHeight + translationHeight),
-                new Rect(0, 0, captureWidth, captureHeight),
-                new Rect(0, captureHeight, translationWidth, translationHeight)
-            ),
-            OverlayOrientation.Top => (
-                new Rect(_captureRect.Left, _captureRect.Top - translationHeight, windowWidth, captureHeight + translationHeight),
-                new Rect(0, translationHeight, captureWidth, captureHeight),
-                new Rect(0, 0, translationWidth, translationHeight)
-            ),
-            _ => (
-                new Rect(_captureRect.Left, _captureRect.Top, captureWidth + translationWidth, windowHeight),
-                new Rect(0, 0, captureWidth, captureHeight),
-                new Rect(captureWidth, 0, translationWidth, translationHeight)
-            )
-        };
+            case OverlayOrientation.Left:
+                padTop = pad;
+                padRight = pad;
+                padBottom = pad;
+                break;
+            case OverlayOrientation.Bottom:
+                padLeft = pad;
+                padTop = pad;
+                padRight = pad;
+                break;
+            case OverlayOrientation.Top:
+                padLeft = pad;
+                padRight = pad;
+                padBottom = pad;
+                break;
+            default:
+                padLeft = pad;
+                padTop = pad;
+                padBottom = pad;
+                break;
+        }
+
+        var holeX = padLeft + (orientation == OverlayOrientation.Left ? translationWidth : 0);
+        var holeY = padTop + (orientation == OverlayOrientation.Top ? translationHeight : 0);
+
+        var windowWidth = holeX + captureWidth + padRight + (orientation == OverlayOrientation.Right ? translationWidth : 0);
+        var windowHeight = holeY + captureHeight + padBottom + (orientation == OverlayOrientation.Bottom ? translationHeight : 0);
+
+        if (orientation == OverlayOrientation.Left || orientation == OverlayOrientation.Right)
+        {
+            windowHeight = Math.Max(windowHeight, padTop + translationHeight + padBottom);
+        }
+        else
+        {
+            windowWidth = Math.Max(windowWidth, padLeft + translationWidth + padRight);
+        }
+
+        var windowRect = new Rect(_captureRect.Left - holeX, _captureRect.Top - holeY, windowWidth, windowHeight);
+        var holeRect = new Rect(holeX, holeY, captureWidth, captureHeight);
+
+        var translationX = orientation == OverlayOrientation.Right
+            ? holeX + captureWidth
+            : padLeft;
+
+        var translationY = orientation == OverlayOrientation.Bottom
+            ? holeY + captureHeight
+            : padTop;
+
+        var translationRect = new Rect(translationX, translationY, translationWidth, translationHeight);
+
+        return (windowRect, holeRect, translationRect);
     }
 
     private static bool Fits(Rect rect, Rectangle bounds)
