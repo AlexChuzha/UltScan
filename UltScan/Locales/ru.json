@@ -51,6 +51,8 @@
     "Settings.LanguagesMore": "Больше языков",
     "Settings.LanguagesLess": "Меньше языков",
     "Settings.ExperimentalMode": "Экспериментальный режим",
+    "Settings.ExperimentalPreprocess": "Экспериментальная фича. Предобработка изображения",
+    "Settings.ExperimentalPreprocessHint": "Улучшает OCR на сложных фонах (игры/оверлеи), но может работать нестабильно.",
     "Settings.ExperimentalHeader": "Экспериментальные функции",
     "Settings.OpenWelcome": "Открыть приветствие и демо",
     "Settings.OverlayHeader": "Оверлей",

@@ -337,6 +337,17 @@ public partial class SettingsWindow : Window
         UpdateExperimentalWarning();
     }
 
+    private void ExperimentalPreprocess_Changed(object sender, RoutedEventArgs e)
+    {
+        if (ExperimentalPreprocessCheckBox.IsChecked == null)
+        {
+            return;
+        }
+
+        _app.Settings.ExperimentalImagePreprocessing = ExperimentalPreprocessCheckBox.IsChecked.Value;
+        _app.Settings.Save();
+    }
+
     public void RefreshLocalization()
     {
         Title = _loc["Settings.Title"];
@@ -350,6 +361,8 @@ public partial class SettingsWindow : Window
         HotkeysLabel.Text = _loc["Settings.HotkeysLabel"];
         AutoStartCheckBox.Content = _loc["Settings.AutoStart"];
         ExperimentalModeCheckBox.Content = _loc["Settings.ExperimentalMode"];
+        ExperimentalPreprocessCheckBox.Content = _loc["Settings.ExperimentalPreprocess"];
+        ExperimentalPreprocessHint.Text = _loc["Settings.ExperimentalPreprocessHint"];
         ExperimentalWarningText.Text = _loc["Settings.ExperimentalWarning"];
         OpenWelcomeButton.Content = _loc["Settings.OpenWelcome"];
         CheckUpdatesButton.Content = _loc["Settings.CheckUpdates"];
@@ -388,6 +401,7 @@ public partial class SettingsWindow : Window
         _suppressAutoStartChange = false;
 
         ExperimentalModeCheckBox.IsChecked = _app.Settings.ExperimentalMode;
+        ExperimentalPreprocessCheckBox.IsChecked = _app.Settings.ExperimentalImagePreprocessing;
         TranslationEnabledCheckBox.IsChecked = _app.Settings.Translation.Enabled;
         TranslationBoldCheckBox.IsChecked = _app.Settings.Translation.TranslatedBold;
         _suppressAppearanceChange = true;

@@ -24,6 +24,10 @@ public partial class TextOverlayWindow : Window
     private string _lastStable = string.Empty;
     private DateTime _lastChangeUtc = DateTime.UtcNow;
     private List<OcrLineLayout> _lastLayoutLines = new();
+    private string _bestCandidateText = string.Empty;
+    private int _bestCandidateScore;
+    private List<OcrLineLayout> _bestCandidateLines = new();
+    private DateTime _lastDebugLogUtc = DateTime.MinValue;
 
     public TextOverlayWindow(Rect rect)
     {
@@ -90,7 +94,10 @@ public partial class TextOverlayWindow : Window
         _lastCandidate = normalized;
         _lastStable = string.Empty;
         _lastChangeUtc = DateTime.UtcNow - TimeSpan.FromMilliseconds(app.Settings.Translation.StabilizationMs + 50);
-        await HandleCandidateAsync(app, text, layout.Lines);
+        _bestCandidateText = text;
+        _bestCandidateScore = layout.QualityScore;
+        _bestCandidateLines = layout.Lines.ToList();
+        await HandleCandidateAsync(app, text, layout.Lines, layout.QualityScore);
     }
 
     private void UpdateTranslatedTextColors()
@@ -272,6 +279,9 @@ public partial class TextOverlayWindow : Window
         _lastStable = string.Empty;
         _lastChangeUtc = DateTime.UtcNow;
         _lastLayoutLines = layout.Lines.ToList();
+        _bestCandidateText = text;
+        _bestCandidateScore = layout.QualityScore;
+        _bestCandidateLines = layout.Lines.ToList();
     }
 
     private void StartTranslationLoop(App app)
@@ -286,37 +296,78 @@ public partial class TextOverlayWindow : Window
             {
                 var layout = await ScreenTextRecognizer.RecognizeLayoutAsync(_captureRect, this);
                 var text = layout.Text;
-                await HandleCandidateAsync(app, text, layout.Lines);
+                await HandleCandidateAsync(app, text, layout.Lines, layout.QualityScore);
 
                 await Task.Delay(Math.Max(200, app.Settings.Translation.PollIntervalMs), token);
             }
         }, token);
     }
 
-    private async Task HandleCandidateAsync(App app, string text, IReadOnlyList<OcrLineLayout> lines)
+    private async Task HandleCandidateAsync(App app, string text, IReadOnlyList<OcrLineLayout> lines, int qualityScore = 0)
     {
         var normalized = NormalizeForCompare(text);
         if (string.IsNullOrWhiteSpace(normalized))
         {
+            LogDebug("skip: empty normalized");
             return;
         }
 
-        if (!string.Equals(normalized, _lastCandidate, StringComparison.Ordinal))
+        var isSame = string.Equals(normalized, _lastCandidate, StringComparison.Ordinal);
+        if (!isSame)
         {
-            _lastCandidate = normalized;
-            _lastChangeUtc = DateTime.UtcNow;
-            ShowTranslationStatus(app);
-            return;
+            var ratio = GetChangeRatio(normalized, _lastCandidate);
+            if (ratio < app.Settings.Translation.MinChangeRatio)
+            {
+                if (qualityScore > _bestCandidateScore)
+                {
+                    _bestCandidateScore = qualityScore;
+                    _bestCandidateText = text;
+                    _bestCandidateLines = lines.ToList();
+                }
+                LogDebug($"noise: ratio={ratio:F3} score={qualityScore} best={_bestCandidateScore}");
+            }
+            else
+            {
+                if (_bestCandidateScore > 0)
+                {
+                    var allowDrop = Math.Max(30, (int)(_bestCandidateScore * 0.15));
+                    if (qualityScore + allowDrop < _bestCandidateScore)
+                    {
+                        LogDebug($"reject drop: ratio={ratio:F3} score={qualityScore} best={_bestCandidateScore}");
+                        goto ContinueStability;
+                    }
+                }
+
+                _lastCandidate = normalized;
+                _lastChangeUtc = DateTime.UtcNow;
+                _bestCandidateText = text;
+                _bestCandidateScore = qualityScore;
+                _bestCandidateLines = lines.ToList();
+                ShowTranslationStatus(app);
+                LogDebug($"accept new: ratio={ratio:F3} score={qualityScore}");
+                return;
+            }
+        }
+
+    ContinueStability:
+        if (qualityScore > _bestCandidateScore)
+        {
+            _bestCandidateScore = qualityScore;
+            _bestCandidateText = text;
+            _bestCandidateLines = lines.ToList();
+            LogDebug($"improve best: score={qualityScore}");
         }
 
         var stableFor = DateTime.UtcNow - _lastChangeUtc;
         if (stableFor.TotalMilliseconds < app.Settings.Translation.StabilizationMs)
         {
+            LogDebug($"wait stable: {stableFor.TotalMilliseconds:F0}ms");
             return;
         }
 
         if (string.Equals(normalized, _lastStable, StringComparison.Ordinal))
         {
+            LogDebug("skip: already stable");
             return;
         }
 
@@ -325,12 +376,14 @@ public partial class TextOverlayWindow : Window
             var ratio = GetChangeRatio(normalized, _lastStable);
             if (ratio < app.Settings.Translation.MinChangeRatio)
             {
+                LogDebug($"skip: min change ratio {ratio:F3}");
                 return;
             }
         }
 
         _lastStable = normalized;
-        _lastLayoutLines = lines.ToList();
+        _lastLayoutLines = _bestCandidateLines.ToList();
+        var stableText = string.IsNullOrWhiteSpace(_bestCandidateText) ? text : _bestCandidateText;
 
         var blocks = app.Settings.Translation.Mode == TranslationMode.VisualNovel
             ? TrySplitCaptionsAndBodies(_lastLayoutLines)
@@ -352,7 +405,7 @@ public partial class TextOverlayWindow : Window
         else
         {
             translated = await TranslationService.TranslateAsync(
-                text,
+                stableText,
                 app.Settings.Translation.SourceLanguage,
                 app.Settings.Translation.TargetLanguage,
                 app.Settings.Translation.ProjectId,
@@ -362,6 +415,7 @@ public partial class TextOverlayWindow : Window
 
         if (translated == null && translatedBodies == null)
         {
+            LogDebug("skip: translation null");
             return;
         }
 
@@ -371,15 +425,39 @@ public partial class TextOverlayWindow : Window
             {
                 var stamp = DateTime.Now.ToString("HH:mm:ss");
                 var header = string.Format(app.Localization["Overlay.TranslatedHeader"], stamp);
-                RenderExperimentalTranslationWithBlocks(text, header, translated, blocks, translatedBodies);
+                RenderExperimentalTranslationWithBlocks(stableText, header, translated, blocks, translatedBodies);
             }
             else
             {
-                RenderTranslationWithBlocks(text, translated, blocks, translatedBodies);
+                RenderTranslationWithBlocks(stableText, translated, blocks, translatedBodies);
             }
 
             HideTranslationStatus();
         });
+        LogDebug("translate: done");
+    }
+
+    private void LogDebug(string message)
+    {
+        var now = DateTime.UtcNow;
+        if ((now - _lastDebugLogUtc).TotalMilliseconds < 200)
+        {
+            return;
+        }
+
+        _lastDebugLogUtc = now;
+
+        try
+        {
+            var root = System.IO.Path.Combine(AppContext.BaseDirectory, "Errors");
+            System.IO.Directory.CreateDirectory(root);
+            var line = $"{DateTime.Now:HH:mm:ss.fff} {message}";
+            System.IO.File.AppendAllText(System.IO.Path.Combine(root, "translation_debug.txt"),
+                line + Environment.NewLine);
+        }
+        catch
+        {
+        }
     }
 
     public void UpdateCaptureRect(Rect rect)

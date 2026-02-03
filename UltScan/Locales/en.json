@@ -51,6 +51,8 @@
     "Settings.LanguagesMore": "More languages",
     "Settings.LanguagesLess": "Less languages",
     "Settings.ExperimentalMode": "Experimental mode",
+    "Settings.ExperimentalPreprocess": "Experimental feature. Image preprocessing",
+    "Settings.ExperimentalPreprocessHint": "Improves OCR on complex backgrounds (games/overlays), but may be unstable.",
     "Settings.ExperimentalHeader": "Experimental",
     "Settings.OpenWelcome": "Open welcome & demo",
     "Settings.OverlayHeader": "Overlay",

@@ -263,6 +263,17 @@
                                           Checked="ExperimentalMode_Changed"
                                           Unchecked="ExperimentalMode_Changed"/>
 
+                                <CheckBox x:Name="ExperimentalPreprocessCheckBox"
+                                          Margin="0,6,0,0"
+                                          Content="Experimental image preprocessing"
+                                          Checked="ExperimentalPreprocess_Changed"
+                                          Unchecked="ExperimentalPreprocess_Changed"/>
+
+                                <TextBlock x:Name="ExperimentalPreprocessHint"
+                                           Margin="0,6,0,0"
+                                           TextWrapping="Wrap"
+                                           Foreground="#555"/>
+
                                 <TextBlock x:Name="ExperimentalWarningText"
                                            Margin="0,8,0,0"
                                            TextWrapping="Wrap"
