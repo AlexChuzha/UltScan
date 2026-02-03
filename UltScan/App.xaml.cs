@@ -23,7 +23,6 @@ namespace UltScan
         private Window? _messageWindow;
         private HotKeyManager? _hotKey;
         private MainWindow? _mainWindow;
-        private CaptureOverlayWindow? _captureOverlayWindow;
         private TextOverlayWindow? _overlayWindow;
         private PinButtonWindow? _pinWindow;
         private Rect? _lastCaptureRect;
@@ -272,11 +271,6 @@ namespace UltScan
 
             _lastCaptureRect = rect;
             UpdateTrayMenuText();
-            _captureOverlayWindow = new CaptureOverlayWindow(rect);
-            _captureOverlayWindow.Closed += (_, __) => _captureOverlayWindow = null;
-            _captureOverlayWindow.RectChanged += (_, newRect) => UpdateOverlayRect(newRect);
-            _captureOverlayWindow.Show();
-
             _overlayWindow = new TextOverlayWindow(rect);
             _overlayWindow.Closed += (_, __) => _overlayWindow = null;
             _overlayWindow.Show();
@@ -311,12 +305,6 @@ namespace UltScan
             {
                 _pinWindow.Close();
                 _pinWindow = null;
-            }
-
-            if (_captureOverlayWindow != null)
-            {
-                _captureOverlayWindow.Close();
-                _captureOverlayWindow = null;
             }
 
             if (_overlayWindow != null)
@@ -394,7 +382,7 @@ namespace UltScan
 
             var hotkeyLabel = FormatHotKeyLabelForMenu(GetCurrentHotKeyLabel());
             _captureItem.Text = string.Format(Localization["App.Tray.CaptureWithHotKey"], hotkeyLabel);
-            if (_overlayWindow != null || _pinWindow != null || _captureOverlayWindow != null)
+            if (_overlayWindow != null || _pinWindow != null)
             {
                 _repeatItem.Text = Localization["App.Tray.CloseOverlay"];
                 _repeatItem.Enabled = true;

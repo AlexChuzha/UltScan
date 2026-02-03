@@ -8,64 +8,83 @@
         AllowsTransparency="True"
         Background="Transparent">
 
-    <!-- Полупрозрачная "карточка", чтобы текст читался -->
-    <Border x:Name="Card"
-            Background="#99444444"
-            CornerRadius="10"
-            BorderBrush="Transparent"
-            BorderThickness="0"
-            Padding="4,3,8,8">
-        <Grid>
-            <StackPanel x:Name="EditorPanel">
-                <TextBlock x:Name="EditorStatusTextBlock"
-                           FontSize="12"
-                           FontWeight="Normal"
-                           Foreground="#B0B0B0"
-                           TextWrapping="Wrap"
-                           Visibility="Collapsed"/>
-                <TextBox x:Name="Editor"
-                         FontSize="16"
-                         FontWeight="Normal"
-                         Foreground="#F2F2F2"
-                         Background="Transparent"
-                         BorderThickness="0"
-                         TextWrapping="Wrap"
-                         AcceptsReturn="True"
-                         VerticalScrollBarVisibility="Auto"
-                         IsReadOnly="True"
-                         IsHitTestVisible="False"
-                         Focusable="False"/>
-            </StackPanel>
-            <StackPanel x:Name="TranslationPanel"
-                        Visibility="Collapsed">
-                <TextBlock x:Name="OriginalTextBlock"
-                           FontSize="16"
-                           FontWeight="Normal"
-                           Foreground="#F2F2F2"
-                           TextWrapping="Wrap"/>
-                <Separator Margin="0,6,0,6" Opacity="0.35"/>
-                <TextBlock x:Name="TranslationHeaderTextBlock"
-                           FontSize="12"
-                           FontWeight="Normal"
-                           Foreground="#B0B0B0"
-                           TextWrapping="Wrap"/>
-                <TextBlock x:Name="TranslationStatusTextBlock"
-                           Margin="0,2,0,0"
-                           FontSize="12"
-                           FontWeight="Normal"
-                           Foreground="#B0B0B0"
-                           TextWrapping="Wrap"
-                           Visibility="Collapsed"/>
-                <TextBlock x:Name="TranslatedTextBlock"
-                           Margin="0,4,0,0"
-                           FontSize="16"
-                           FontWeight="Normal"
-                           Foreground="#4CD964"
-                           TextWrapping="Wrap"/>
-            </StackPanel>
-            <Canvas x:Name="LayoutCanvas"
-                    IsHitTestVisible="False"
-                    Visibility="Collapsed"/>
-        </Grid>
-    </Border>
+    <Canvas x:Name="RootCanvas">
+        <Path x:Name="OverlayPath"
+              Fill="#99444444"
+              IsHitTestVisible="False"/>
+
+        <Border x:Name="OuterBorder"
+                BorderBrush="#AA000000"
+                BorderThickness="2"
+                Background="Transparent"
+                IsHitTestVisible="False">
+            <Border x:Name="InnerBorder"
+                    BorderBrush="#CCFFFFFF"
+                    BorderThickness="2"
+                    Margin="1"
+                    Background="Transparent"/>
+        </Border>
+
+        <!-- Полупрозрачная "карточка", чтобы текст читался -->
+        <Border x:Name="Card"
+                Background="#99444444"
+                CornerRadius="10"
+                BorderBrush="Transparent"
+                BorderThickness="0"
+                Padding="4,3,8,8"
+                IsHitTestVisible="False">
+            <Grid>
+                <StackPanel x:Name="EditorPanel">
+                    <TextBlock x:Name="EditorStatusTextBlock"
+                               FontSize="12"
+                               FontWeight="Normal"
+                               Foreground="#B0B0B0"
+                               TextWrapping="Wrap"
+                               Visibility="Collapsed"/>
+                    <TextBox x:Name="Editor"
+                             FontSize="16"
+                             FontWeight="Normal"
+                             Foreground="#F2F2F2"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto"
+                             IsReadOnly="True"
+                             IsHitTestVisible="False"
+                             Focusable="False"/>
+                </StackPanel>
+                <StackPanel x:Name="TranslationPanel"
+                            Visibility="Collapsed">
+                    <TextBlock x:Name="OriginalTextBlock"
+                               FontSize="16"
+                               FontWeight="Normal"
+                               Foreground="#F2F2F2"
+                               TextWrapping="Wrap"/>
+                    <Separator Margin="0,6,0,6" Opacity="0.35"/>
+                    <TextBlock x:Name="TranslationHeaderTextBlock"
+                               FontSize="12"
+                               FontWeight="Normal"
+                               Foreground="#B0B0B0"
+                               TextWrapping="Wrap"/>
+                    <TextBlock x:Name="TranslationStatusTextBlock"
+                               Margin="0,2,0,0"
+                               FontSize="12"
+                               FontWeight="Normal"
+                               Foreground="#B0B0B0"
+                               TextWrapping="Wrap"
+                               Visibility="Collapsed"/>
+                    <TextBlock x:Name="TranslatedTextBlock"
+                               Margin="0,4,0,0"
+                               FontSize="16"
+                               FontWeight="Normal"
+                               Foreground="#4CD964"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+                <Canvas x:Name="LayoutCanvas"
+                        IsHitTestVisible="False"
+                        Visibility="Collapsed"/>
+            </Grid>
+        </Border>
+    </Canvas>
 </Window>

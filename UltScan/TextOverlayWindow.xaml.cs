@@ -14,8 +14,11 @@ public partial class TextOverlayWindow : Window
 {
     private Rect _captureRect;
     private System.Windows.Media.Brush _defaultBackground = System.Windows.Media.Brushes.Transparent;
+    private System.Windows.Media.Brush _defaultOverlayBackground = System.Windows.Media.Brushes.Transparent;
     private System.Windows.Media.Brush _defaultBorderBrush = System.Windows.Media.Brushes.Transparent;
     private Thickness _defaultBorderThickness = new(0);
+    private System.Windows.Media.Brush _defaultOuterBorderBrush = System.Windows.Media.Brushes.Transparent;
+    private System.Windows.Media.Brush _defaultInnerBorderBrush = System.Windows.Media.Brushes.Transparent;
     private System.Windows.Media.Brush _defaultTextBrush = System.Windows.Media.Brushes.White;
     private System.Windows.Media.Brush _translatedTextBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 76, 217, 100));
     private System.Windows.Media.Brush _captionTextBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 200, 255, 212));
@@ -27,6 +30,8 @@ public partial class TextOverlayWindow : Window
     private string _bestCandidateText = string.Empty;
     private int _bestCandidateScore;
     private List<OcrLineLayout> _bestCandidateLines = new();
+    private Rect _holeRect;
+    private Rect _translationRect;
     private DateTime _lastDebugLogUtc = DateTime.MinValue;
 
     public TextOverlayWindow(Rect rect)
@@ -52,9 +57,12 @@ public partial class TextOverlayWindow : Window
     private void CacheDefaults()
     {
         _defaultBackground = Card.Background;
+        _defaultOverlayBackground = OverlayPath.Fill;
         _defaultBorderBrush = Card.BorderBrush;
         _defaultBorderThickness = Card.BorderThickness;
         _defaultTextBrush = Editor.Foreground;
+        _defaultOuterBorderBrush = OuterBorder.BorderBrush;
+        _defaultInnerBorderBrush = InnerBorder.BorderBrush;
     }
 
     private void ApplyOverlayAppearance()
@@ -133,15 +141,27 @@ public partial class TextOverlayWindow : Window
         }
 
         var clamped = Math.Max(0.1, Math.Min(1.0, opacity));
-        var color = brush.Color;
-        var updated = System.Windows.Media.Color.FromArgb(
+        var cardColor = brush.Color;
+        var cardUpdated = System.Windows.Media.Color.FromArgb(
             (byte)Math.Round(clamped * 255),
-            color.R,
-            color.G,
-            color.B);
+            cardColor.R,
+            cardColor.G,
+            cardColor.B);
 
-        Card.Background = new SolidColorBrush(updated);
+        Card.Background = new SolidColorBrush(cardUpdated);
         _defaultBackground = Card.Background;
+
+        if (_defaultOverlayBackground is SolidColorBrush overlayBrush)
+        {
+            var overlayColor = overlayBrush.Color;
+            var overlayUpdated = System.Windows.Media.Color.FromArgb(
+                (byte)Math.Round(clamped * 255),
+                overlayColor.R,
+                overlayColor.G,
+                overlayColor.B);
+            OverlayPath.Fill = new SolidColorBrush(overlayUpdated);
+            _defaultOverlayBackground = OverlayPath.Fill;
+        }
     }
 
     private static System.Windows.Media.Color ParseColorOrDefault(string value, System.Windows.Media.Color fallback)
@@ -163,10 +183,14 @@ public partial class TextOverlayWindow : Window
 
     private void ConfigureLayout()
     {
+        UpdateWindowLayout();
+    }
+
+    private void UpdateWindowLayout()
+    {
         var app = (App)System.Windows.Application.Current;
-        var orientation = app.Settings.Overlay.Orientation;
-        Width = _captureRect.Width;
-        Height = _captureRect.Height;
+        var translationWidth = Math.Max(1, _captureRect.Width);
+        var translationHeight = Math.Max(1, ComputeCardHeight(translationWidth));
 
         var screen = Forms.Screen.FromRectangle(new Rectangle(
             (int)_captureRect.X,
@@ -174,37 +198,99 @@ public partial class TextOverlayWindow : Window
             Math.Max(1, (int)_captureRect.Width),
             Math.Max(1, (int)_captureRect.Height))).WorkingArea;
 
-        var desired = GetPositionForOrientation(orientation);
-        if (!Fits(desired, screen))
+        var preferred = app.Settings.Overlay.Orientation;
+        var chosen = preferred;
+        Rect windowRect = default;
+        Rect holeRect = default;
+        Rect translationRect = default;
+
+        foreach (var orientation in GetOrientationOrder(preferred))
         {
-            var fallback = GetFallbackOrientation(orientation);
-            desired = GetPositionForOrientation(fallback);
+            var candidate = ComputeLayout(orientation, translationWidth, translationHeight);
+            if (Fits(candidate.WindowRect, screen))
+            {
+                chosen = orientation;
+                windowRect = candidate.WindowRect;
+                holeRect = candidate.HoleRect;
+                translationRect = candidate.TranslationRect;
+                break;
+            }
         }
 
-        Left = desired.Left;
-        Top = desired.Top;
-        ClampToScreen();
+        if (windowRect.Width <= 0 || windowRect.Height <= 0)
+        {
+            var fallback = ComputeLayout(chosen, translationWidth, translationHeight);
+            windowRect = fallback.WindowRect;
+            holeRect = fallback.HoleRect;
+            translationRect = fallback.TranslationRect;
+        }
+
+        _holeRect = holeRect;
+        _translationRect = translationRect;
+
+        Left = windowRect.Left;
+        Top = windowRect.Top;
+        Width = windowRect.Width;
+        Height = windowRect.Height;
+
+        System.Windows.Controls.Canvas.SetLeft(OuterBorder, _holeRect.X);
+        System.Windows.Controls.Canvas.SetTop(OuterBorder, _holeRect.Y);
+        OuterBorder.Width = _holeRect.Width;
+        OuterBorder.Height = _holeRect.Height;
+
+        System.Windows.Controls.Canvas.SetLeft(Card, _translationRect.X);
+        System.Windows.Controls.Canvas.SetTop(Card, _translationRect.Y);
+        Card.Width = _translationRect.Width;
+        Card.Height = _translationRect.Height;
+
+        UpdateOverlayGeometry();
     }
 
-    private Rect GetPositionForOrientation(OverlayOrientation orientation)
+    private static IEnumerable<OverlayOrientation> GetOrientationOrder(OverlayOrientation preferred)
     {
-        return orientation switch
+        var order = new[]
         {
-            OverlayOrientation.Bottom => new Rect(_captureRect.Left, _captureRect.Bottom, Width, Height),
-            OverlayOrientation.Top => new Rect(_captureRect.Left, _captureRect.Top - Height, Width, Height),
-            OverlayOrientation.Left => new Rect(_captureRect.Left - Width, _captureRect.Top, Width, Height),
-            _ => new Rect(_captureRect.Right, _captureRect.Top, Width, Height)
+            OverlayOrientation.Right,
+            OverlayOrientation.Left,
+            OverlayOrientation.Bottom,
+            OverlayOrientation.Top
         };
+
+        return order.Where(o => o == preferred).Concat(order.Where(o => o != preferred));
     }
 
-    private static OverlayOrientation GetFallbackOrientation(OverlayOrientation orientation)
+    private (Rect WindowRect, Rect HoleRect, Rect TranslationRect) ComputeLayout(
+        OverlayOrientation orientation,
+        double translationWidth,
+        double translationHeight)
     {
+        var captureWidth = _captureRect.Width;
+        var captureHeight = _captureRect.Height;
+        var windowHeight = Math.Max(captureHeight, translationHeight);
+        var windowWidth = Math.Max(captureWidth, translationWidth);
+
         return orientation switch
         {
-            OverlayOrientation.Bottom => OverlayOrientation.Top,
-            OverlayOrientation.Top => OverlayOrientation.Bottom,
-            OverlayOrientation.Left => OverlayOrientation.Right,
-            _ => OverlayOrientation.Left
+            OverlayOrientation.Left => (
+                new Rect(_captureRect.Left - translationWidth, _captureRect.Top, captureWidth + translationWidth, windowHeight),
+                new Rect(translationWidth, 0, captureWidth, captureHeight),
+                new Rect(0, 0, translationWidth, translationHeight)
+            ),
+            OverlayOrientation.Bottom => (
+                new Rect(_captureRect.Left, _captureRect.Top, windowWidth, captureHeight + translationHeight),
+                new Rect(0, 0, captureWidth, captureHeight),
+                new Rect(0, captureHeight, translationWidth, translationHeight)
+            ),
+            OverlayOrientation.Top => (
+                new Rect(_captureRect.Left, _captureRect.Top - translationHeight, windowWidth, captureHeight + translationHeight),
+                new Rect(0, translationHeight, captureWidth, captureHeight),
+                new Rect(0, 0, translationWidth, translationHeight)
+            ),
+            _ => (
+                new Rect(_captureRect.Left, _captureRect.Top, captureWidth + translationWidth, windowHeight),
+                new Rect(0, 0, captureWidth, captureHeight),
+                new Rect(captureWidth, 0, translationWidth, translationHeight)
+            )
         };
     }
 
@@ -214,25 +300,6 @@ public partial class TextOverlayWindow : Window
                rect.Top >= bounds.Top &&
                rect.Right <= bounds.Right &&
                rect.Bottom <= bounds.Bottom;
-    }
-
-    private void ClampToScreen()
-    {
-        var rect = new Rectangle((int)Left, (int)Top, (int)Math.Max(1, Width), (int)Math.Max(1, Height));
-        var screen = Forms.Screen.FromRectangle(rect).WorkingArea;
-
-        if (Left + Width > screen.Right)
-        {
-            Left = screen.Right - Width;
-        }
-
-        if (Top + Height > screen.Bottom)
-        {
-            Top = screen.Bottom - Height;
-        }
-
-        if (Left < screen.Left) Left = screen.Left;
-        if (Top < screen.Top) Top = screen.Top;
     }
 
     private async Task StartRecognitionAsync()
@@ -952,8 +1019,8 @@ public partial class TextOverlayWindow : Window
                 TextWrapping = TextWrapping.NoWrap
             };
 
-            var localX = line.Bounds.X - _captureRect.X;
-            var localY = line.Bounds.Y - _captureRect.Y;
+            var localX = (line.Bounds.X - _captureRect.X) + _holeRect.X;
+            var localY = (line.Bounds.Y - _captureRect.Y) + _holeRect.Y;
 
             System.Windows.Controls.Canvas.SetLeft(textBlock, localX);
             System.Windows.Controls.Canvas.SetTop(textBlock, localY);
@@ -965,24 +1032,7 @@ public partial class TextOverlayWindow : Window
 
     private void AdjustHeightToContent(FrameworkElement element)
     {
-        var minHeight = _captureRect.Height;
-        var availableWidth = Math.Max(1, Width - Card.Padding.Left - Card.Padding.Right);
-
-        element.Measure(new System.Windows.Size(availableWidth, double.PositiveInfinity));
-        var desired = element.DesiredSize.Height + Card.Padding.Top + Card.Padding.Bottom;
-
-        var rect = new Rectangle((int)Left, (int)Top, (int)Math.Max(1, Width), 1);
-        var screen = Forms.Screen.FromRectangle(rect).WorkingArea;
-        var maxHeight = screen.Height;
-
-        var newHeight = Math.Max(minHeight, desired);
-        if (newHeight > maxHeight)
-        {
-            newHeight = maxHeight;
-        }
-
-        Height = newHeight;
-        ClampToScreen();
+        UpdateWindowLayout();
     }
 
     private void EnableClickThrough()
@@ -1002,12 +1052,13 @@ public partial class TextOverlayWindow : Window
     {
         if (isHighlighted)
         {
-            Card.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 68, 68, 68));
-            Card.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 255, 255, 255));
-            Card.BorderThickness = new Thickness(2);
+            OuterBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 255, 255, 255));
+            InnerBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 0, 0, 0));
         }
         else
         {
+            OuterBorder.BorderBrush = _defaultOuterBorderBrush;
+            InnerBorder.BorderBrush = _defaultInnerBorderBrush;
             Card.Background = _defaultBackground;
             Card.BorderBrush = _defaultBorderBrush;
             Card.BorderThickness = _defaultBorderThickness;
@@ -1023,4 +1074,25 @@ public partial class TextOverlayWindow : Window
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+    private double ComputeCardHeight(double width)
+    {
+        var availableWidth = Math.Max(1, width - Card.Padding.Left - Card.Padding.Right);
+        Card.Width = width;
+        Card.Measure(new System.Windows.Size(availableWidth, double.PositiveInfinity));
+        return Card.DesiredSize.Height;
+    }
+
+    private void UpdateOverlayGeometry()
+    {
+        if (Width <= 0 || Height <= 0)
+        {
+            return;
+        }
+
+        var full = new RectangleGeometry(new Rect(0, 0, Width, Height));
+        var hole = new RectangleGeometry(_holeRect);
+        var combined = new CombinedGeometry(GeometryCombineMode.Exclude, full, hole);
+        OverlayPath.Data = combined;
+    }
 }
