@@ -14,6 +14,7 @@ namespace UltScan;
 public partial class TextOverlayWindow : Window
 {
     private const double PlatePadding = 12;
+    private const int ShortTextLimit = 10;
     private Rect _captureRect;
     private System.Windows.Media.Brush _defaultBackground = System.Windows.Media.Brushes.Transparent;
     private System.Windows.Media.Brush _defaultOverlayBackground = System.Windows.Media.Brushes.Transparent;
@@ -505,6 +506,17 @@ public partial class TextOverlayWindow : Window
         }
 
         var isSame = string.Equals(normalized, _lastCandidate, StringComparison.Ordinal);
+        if (!isSame && IsShortTextTransition(normalized, _lastCandidate))
+        {
+            _lastCandidate = normalized;
+            _lastChangeUtc = DateTime.UtcNow;
+            _bestCandidateText = text;
+            _bestCandidateScore = qualityScore;
+            _bestCandidateLines = lines.ToList();
+            ShowTranslationStatus(app);
+            LogDebug("accept short change");
+            return;
+        }
         if (!isSame)
         {
             var ratio = GetChangeRatio(normalized, _lastCandidate);
@@ -520,6 +532,18 @@ public partial class TextOverlayWindow : Window
             }
             else
             {
+                if (ratio >= 0.6)
+                {
+                    _lastCandidate = normalized;
+                    _lastChangeUtc = DateTime.UtcNow;
+                    _bestCandidateText = text;
+                    _bestCandidateScore = qualityScore;
+                    _bestCandidateLines = lines.ToList();
+                    ShowTranslationStatus(app);
+                    LogDebug($"accept big change: ratio={ratio:F3} score={qualityScore}");
+                    return;
+                }
+
                 if (_bestCandidateScore > 0)
                 {
                     var allowDrop = Math.Max(30, (int)(_bestCandidateScore * 0.15));
@@ -566,7 +590,7 @@ public partial class TextOverlayWindow : Window
         if (!string.IsNullOrEmpty(_lastStable))
         {
             var ratio = GetChangeRatio(normalized, _lastStable);
-            if (ratio < app.Settings.Translation.MinChangeRatio)
+            if (ratio < app.Settings.Translation.MinChangeRatio && !IsShortTextTransition(normalized, _lastStable))
             {
                 LogDebug($"skip: min change ratio {ratio:F3}");
                 return;
@@ -627,6 +651,13 @@ public partial class TextOverlayWindow : Window
             HideTranslationStatus();
         });
         LogDebug("translate: done");
+    }
+
+    private static bool IsShortTextTransition(string current, string previous)
+    {
+        var curLen = current.Length;
+        var prevLen = previous.Length;
+        return curLen <= ShortTextLimit || prevLen <= ShortTextLimit;
     }
 
     private void LogDebug(string message)
