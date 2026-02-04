@@ -278,7 +278,14 @@ namespace UltScan
             var outputRect = _overlayWindow != null
                 ? new Rect(_overlayWindow.Left, _overlayWindow.Top, _overlayWindow.Width, _overlayWindow.Height)
                 : (Rect?)null;
-            _pinWindow = new PinButtonWindow(rect, CloseOverlayWindow, SetOverlayHighlight, outputRect);
+            _pinWindow = new PinButtonWindow(
+                rect,
+                CloseOverlayWindow,
+                () => _ = ForceOverlayTranslationAsync(),
+                (dx, dy) => MoveOverlayBy(dx, dy),
+                enabled => _overlayWindow?.SetTransparencyEnabled(enabled),
+                SetOverlayHighlight,
+                outputRect);
             _pinWindow.Closed += (_, __) => _pinWindow = null;
             _pinWindow.Show();
             UpdateTrayMenuText();
@@ -408,7 +415,19 @@ namespace UltScan
                 return;
             }
 
-            await _overlayWindow.ForceTranslateAsync();
+            await _overlayWindow.ForceRefreshAsync();
+        }
+
+        private void MoveOverlayBy(double dx, double dy)
+        {
+            if (_lastCaptureRect == null || _overlayWindow == null)
+            {
+                return;
+            }
+
+            var rect = _lastCaptureRect.Value;
+            rect.Offset(dx, dy);
+            UpdateOverlayRect(rect);
         }
 
         private string GetCurrentHotKeyLabel()

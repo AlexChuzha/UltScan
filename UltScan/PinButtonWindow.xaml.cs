@@ -7,22 +7,42 @@ namespace UltScan;
 
 public partial class PinButtonWindow : Window
 {
+    private static readonly System.Windows.Media.Color PanelBaseColor =
+        System.Windows.Media.Color.FromArgb(0x99, 0x44, 0x44, 0x44);
     private readonly Action _onClose;
+    private readonly Action _onManualTranslate;
+    private readonly Action<double, double> _onDragDelta;
+    private readonly Action<bool> _onTransparencyChanged;
     private readonly Action<bool> _onHoverChanged;
     private Rect? _avoidRect;
     private Rect _anchorRect;
 
-    public PinButtonWindow(Rect anchorRect, Action onClose, Action<bool> onHoverChanged, Rect? avoidRect)
+    public PinButtonWindow(
+        Rect anchorRect,
+        Action onClose,
+        Action onManualTranslate,
+        Action<double, double> onDragDelta,
+        Action<bool> onTransparencyChanged,
+        Action<bool> onHoverChanged,
+        Rect? avoidRect)
     {
         InitializeComponent();
 
         _onClose = onClose;
+        _onManualTranslate = onManualTranslate;
+        _onDragDelta = onDragDelta;
+        _onTransparencyChanged = onTransparencyChanged;
         _onHoverChanged = onHoverChanged;
         _anchorRect = anchorRect;
         _avoidRect = avoidRect;
 
         var app = (App)System.Windows.Application.Current;
         CloseButton.ToolTip = app.Localization["Overlay.CloseTooltip"];
+        ManualTranslateButton.ToolTip = app.Localization["Overlay.ManualTranslateTooltip"];
+        DragThumb.ToolTip = app.Localization["Overlay.DragTooltip"];
+        TransparencyCheckBox.Content = app.Localization["Overlay.TransparencyLabel"];
+        TransparencyCheckBox.IsChecked = true;
+        UpdatePanelAppearance(app.Settings.Overlay.Opacity, transparencyEnabled: true);
 
         UpdatePosition(anchorRect, avoidRect);
     }
@@ -39,6 +59,26 @@ public partial class PinButtonWindow : Window
             Math.Max(1, (int)anchorRect.Height)));
 
         var bounds = screen.WorkingArea;
+        System.Windows.Point? attached = null;
+        if (avoidRect.HasValue)
+        {
+            var output = avoidRect.Value;
+            var x = output.Left + 6;
+            var y = output.Top - Height;
+            attached = new System.Windows.Point(x, y);
+        }
+
+        if (attached.HasValue &&
+            attached.Value.X >= bounds.Left &&
+            attached.Value.Y >= bounds.Top &&
+            attached.Value.X + Width <= bounds.Right &&
+            attached.Value.Y + Height <= bounds.Bottom)
+        {
+            Left = attached.Value.X;
+            Top = attached.Value.Y;
+            return;
+        }
+
         var candidates = new[]
         {
             new System.Windows.Point(anchorRect.Left + 6, anchorRect.Top - Height - 6),          // above-left
@@ -104,13 +144,53 @@ public partial class PinButtonWindow : Window
         Close();
     }
 
-    private void CloseButton_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    private void ManualTranslateButton_Click(object sender, RoutedEventArgs e)
+    {
+        _onManualTranslate();
+    }
+
+    private void DragThumb_DragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
+    {
+        _onDragDelta(e.HorizontalChange, e.VerticalChange);
+    }
+
+    private void TransparencyCheckBox_Checked(object sender, RoutedEventArgs e)
+    {
+        UpdatePanelAppearance(GetOverlayOpacity(), transparencyEnabled: true);
+        _onTransparencyChanged(true);
+    }
+
+    private void TransparencyCheckBox_Unchecked(object sender, RoutedEventArgs e)
+    {
+        UpdatePanelAppearance(GetOverlayOpacity(), transparencyEnabled: false);
+        _onTransparencyChanged(false);
+    }
+
+    private void Panel_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
     {
         _onHoverChanged(true);
     }
 
-    private void CloseButton_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+    private void Panel_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
     {
         _onHoverChanged(false);
+    }
+
+    private static double GetOverlayOpacity()
+    {
+        if (System.Windows.Application.Current is App app)
+        {
+            return app.Settings.Overlay.Opacity;
+        }
+
+        return 1.0;
+    }
+
+    private void UpdatePanelAppearance(double overlayOpacity, bool transparencyEnabled)
+    {
+        var clamped = Math.Max(0.1, Math.Min(1.0, overlayOpacity));
+        var alpha = (byte)Math.Round((transparencyEnabled ? clamped : 1.0) * 255);
+        PanelRoot.Background = new System.Windows.Media.SolidColorBrush(
+            System.Windows.Media.Color.FromArgb(alpha, PanelBaseColor.R, PanelBaseColor.G, PanelBaseColor.B));
     }
 }

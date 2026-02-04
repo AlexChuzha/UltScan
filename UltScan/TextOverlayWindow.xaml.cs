@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Interop;
@@ -24,6 +25,8 @@ public partial class TextOverlayWindow : Window
     private System.Windows.Media.Brush _translatedTextBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 76, 217, 100));
     private System.Windows.Media.Brush _captionTextBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 200, 255, 212));
     private System.Threading.CancellationTokenSource? _translationCts;
+    private System.Threading.CancellationTokenSource? _manualCts;
+    private int _operationId;
     private string _lastCandidate = string.Empty;
     private string _lastStable = string.Empty;
     private DateTime _lastChangeUtc = DateTime.UtcNow;
@@ -34,6 +37,7 @@ public partial class TextOverlayWindow : Window
     private Rect _holeRect;
     private Rect _translationRect;
     private DateTime _lastDebugLogUtc = DateTime.MinValue;
+    private bool _transparencyEnabled = true;
 
     public TextOverlayWindow(Rect rect)
     {
@@ -49,7 +53,11 @@ public partial class TextOverlayWindow : Window
         SourceInitialized += (_, __) => EnableClickThrough();
 
         Loaded += async (_, __) => await StartRecognitionAsync();
-        Closed += (_, __) => _translationCts?.Cancel();
+        Closed += (_, __) =>
+        {
+            _translationCts?.Cancel();
+            _manualCts?.Cancel();
+        };
 
         CacheDefaults();
         ApplyOverlayAppearance();
@@ -69,7 +77,8 @@ public partial class TextOverlayWindow : Window
     private void ApplyOverlayAppearance()
     {
         var app = (App)System.Windows.Application.Current;
-        ApplyOverlayOpacity(app.Settings.Overlay.Opacity);
+        var opacity = _transparencyEnabled ? app.Settings.Overlay.Opacity : 1.0;
+        ApplyOverlayOpacity(opacity);
         _translatedTextBrush = new SolidColorBrush(ParseColorOrDefault(
             app.Settings.Translation.TranslatedTextColor,
             System.Windows.Media.Color.FromArgb(255, 76, 217, 100)));
@@ -84,15 +93,82 @@ public partial class TextOverlayWindow : Window
         ApplyOverlayAppearance();
     }
 
+    public void SetTransparencyEnabled(bool enabled)
+    {
+        _transparencyEnabled = enabled;
+        ApplyOverlayAppearance();
+    }
+
     public async Task ForceTranslateAsync()
     {
+        await ForceRefreshAsync();
+    }
+
+    public async Task ForceRefreshAsync()
+    {
         var app = (App)System.Windows.Application.Current;
-        if (!app.Settings.Translation.Enabled)
+        _translationCts?.Cancel();
+        _manualCts?.Cancel();
+        var cts = new CancellationTokenSource();
+        _manualCts = cts;
+        var opId = Interlocked.Increment(ref _operationId);
+
+        try
+        {
+            if (app.Settings.Translation.Enabled)
+            {
+                await ForceTranslateAsyncInternal(app, opId, cts.Token);
+            }
+            else if (app.Settings.ExperimentalMode)
+            {
+                var layout = await ScreenTextRecognizer.RecognizeLayoutAsync(_captureRect, this);
+                if (IsOpCanceled(opId, cts.Token))
+                {
+                    return;
+                }
+
+                if (layout.Lines.Count > 0)
+                {
+                    RenderLayout(layout);
+                }
+                else
+                {
+                    RenderPlainText(layout.Text);
+                }
+            }
+            else
+            {
+                var text = await ScreenTextRecognizer.RecognizeTextAsync(_captureRect, this);
+                if (IsOpCanceled(opId, cts.Token))
+                {
+                    return;
+                }
+
+                RenderPlainText(text);
+            }
+        }
+        finally
+        {
+            if (_manualCts == cts)
+            {
+                _manualCts = null;
+            }
+
+            if (app.Settings.Translation.Enabled)
+            {
+                StartTranslationLoop(app);
+            }
+        }
+    }
+
+    private async Task ForceTranslateAsyncInternal(App app, int opId, CancellationToken token)
+    {
+        var layout = await ScreenTextRecognizer.RecognizeLayoutAsync(_captureRect, this);
+        if (IsOpCanceled(opId, token))
         {
             return;
         }
 
-        var layout = await ScreenTextRecognizer.RecognizeLayoutAsync(_captureRect, this);
         var text = layout.Text;
         var normalized = NormalizeForCompare(text);
         if (string.IsNullOrWhiteSpace(normalized))
@@ -107,6 +183,11 @@ public partial class TextOverlayWindow : Window
         _bestCandidateScore = layout.QualityScore;
         _bestCandidateLines = layout.Lines.ToList();
         await HandleCandidateAsync(app, text, layout.Lines, layout.QualityScore);
+    }
+
+    private bool IsOpCanceled(int opId, CancellationToken token)
+    {
+        return token.IsCancellationRequested || opId != _operationId;
     }
 
     private void UpdateTranslatedTextColors()
@@ -391,15 +472,24 @@ public partial class TextOverlayWindow : Window
         _translationCts?.Cancel();
         _translationCts = new System.Threading.CancellationTokenSource();
         var token = _translationCts.Token;
+        var opId = _operationId;
 
         _ = Task.Run(async () =>
         {
             while (!token.IsCancellationRequested)
             {
                 var layout = await ScreenTextRecognizer.RecognizeLayoutAsync(_captureRect, this);
+                if (IsOpCanceled(opId, token))
+                {
+                    break;
+                }
                 var text = layout.Text;
                 await HandleCandidateAsync(app, text, layout.Lines, layout.QualityScore);
 
+                if (IsOpCanceled(opId, token))
+                {
+                    break;
+                }
                 await Task.Delay(Math.Max(200, app.Settings.Translation.PollIntervalMs), token);
             }
         }, token);

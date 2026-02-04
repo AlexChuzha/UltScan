@@ -97,7 +97,10 @@
     "Overlay.TranslatedHeader": "Translation • {0}",
     "Overlay.Translating": "Translating…"
     ,
-    "Overlay.CloseTooltip": "Close overlay"
+    "Overlay.CloseTooltip": "Close overlay",
+    "Overlay.ManualTranslateTooltip": "Refresh OCR and translation",
+    "Overlay.DragTooltip": "Drag to move overlay",
+    "Overlay.TransparencyLabel": "Transparent"
     ,
     "Welcome.Title": "Welcome",
     "Welcome.Header": "Welcome to UltScan",
