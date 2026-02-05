@@ -65,7 +65,19 @@ public partial class PinButtonWindow : Window
             var output = avoidRect.Value;
             var x = output.Left + 6;
             var y = output.Top - Height;
-            attached = new System.Windows.Point(x, y);
+            if (y < bounds.Top)
+            {
+                y = output.Bottom;
+                if (y + Height > bounds.Bottom)
+                {
+                    y = Math.Max(bounds.Top, output.Top - Height);
+                }
+            }
+
+            var clamped = ClampCandidate(new System.Windows.Point(x, y), bounds, Width, Height);
+            Left = clamped.X;
+            Top = clamped.Y;
+            return;
         }
 
         if (attached.HasValue &&

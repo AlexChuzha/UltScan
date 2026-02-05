@@ -122,6 +122,7 @@ public partial class TextOverlayWindow : Window
         {
             if (app.Settings.Translation.Enabled)
             {
+                ShowTranslationStatus(app);
                 await ForceTranslateAsyncInternal(app, opId, cts.Token);
             }
             else if (app.Settings.ExperimentalMode)
@@ -374,6 +375,10 @@ public partial class TextOverlayWindow : Window
         Card.Height = _translationRect.Height;
 
         UpdateOverlayGeometry();
+        if (System.Windows.Application.Current is App appInstance)
+        {
+            appInstance.UpdatePinWindowPosition();
+        }
     }
 
     private static IEnumerable<OverlayOrientation> GetOrientationOrder(OverlayOrientation preferred)
@@ -843,7 +848,7 @@ public partial class TextOverlayWindow : Window
         TranslatedTextBlock.Text = translated;
         TranslatedTextBlock.Foreground = _translatedTextBrush;
         TranslatedTextBlock.FontWeight = GetTranslatedFontWeight(isTranslated: true);
-        TranslationStatusTextBlock.Visibility = Visibility.Collapsed;
+        TranslationStatusTextBlock.Visibility = Visibility.Hidden;
         AdjustHeightToContent(TranslationPanel);
     }
 
@@ -866,7 +871,7 @@ public partial class TextOverlayWindow : Window
         TranslatedTextBlock.Text = translatedText;
         TranslatedTextBlock.Foreground = _translatedTextBrush;
         TranslatedTextBlock.FontWeight = GetTranslatedFontWeight(isTranslated: true);
-        TranslationStatusTextBlock.Visibility = Visibility.Collapsed;
+        TranslationStatusTextBlock.Visibility = Visibility.Hidden;
         AdjustHeightToContent(TranslationPanel);
     }
 
@@ -893,7 +898,7 @@ public partial class TextOverlayWindow : Window
         TranslatedTextBlock.Text = translatedText;
         TranslatedTextBlock.Foreground = _translatedTextBrush;
         TranslatedTextBlock.FontWeight = GetTranslatedFontWeight(isTranslated: true);
-        TranslationStatusTextBlock.Visibility = Visibility.Collapsed;
+        TranslationStatusTextBlock.Visibility = Visibility.Hidden;
         AdjustHeightToContent(TranslationPanel);
     }
 
@@ -917,8 +922,8 @@ public partial class TextOverlayWindow : Window
 
     private void HideTranslationStatus()
     {
-        TranslationStatusTextBlock.Visibility = Visibility.Collapsed;
-        EditorStatusTextBlock.Visibility = Visibility.Collapsed;
+        TranslationStatusTextBlock.Visibility = Visibility.Hidden;
+        EditorStatusTextBlock.Visibility = Visibility.Hidden;
     }
 
     private FontWeight GetTranslatedFontWeight(bool isTranslated)
@@ -1164,7 +1169,7 @@ public partial class TextOverlayWindow : Window
         TranslationPanel.Visibility = Visibility.Visible;
         OriginalTextBlock.Visibility = Visibility.Collapsed;
         TranslationHeaderTextBlock.Visibility = Visibility.Collapsed;
-        TranslationStatusTextBlock.Visibility = Visibility.Collapsed;
+        TranslationStatusTextBlock.Visibility = Visibility.Hidden;
 
         TranslatedTextBlock.Inlines.Clear();
 

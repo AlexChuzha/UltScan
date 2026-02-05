@@ -408,6 +408,17 @@ namespace UltScan
             _overlayWindow?.ApplyAppearanceFromSettings();
         }
 
+        public void UpdatePinWindowPosition()
+        {
+            if (_pinWindow == null || _overlayWindow == null || _lastCaptureRect == null)
+            {
+                return;
+            }
+
+            var outputRect = new Rect(_overlayWindow.Left, _overlayWindow.Top, _overlayWindow.Width, _overlayWindow.Height);
+            _pinWindow.UpdatePosition(_lastCaptureRect.Value, outputRect);
+        }
+
         public async Task ForceOverlayTranslationAsync()
         {
             if (_overlayWindow == null)

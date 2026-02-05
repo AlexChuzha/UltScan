@@ -40,7 +40,8 @@
                                FontWeight="Normal"
                                Foreground="#B0B0B0"
                                TextWrapping="Wrap"
-                               Visibility="Collapsed"/>
+                               MinHeight="18"
+                               Visibility="Hidden"/>
                     <TextBox x:Name="Editor"
                              FontSize="16"
                              FontWeight="Normal"
@@ -73,7 +74,8 @@
                                FontWeight="Normal"
                                Foreground="#B0B0B0"
                                TextWrapping="Wrap"
-                               Visibility="Collapsed"/>
+                               MinHeight="18"
+                               Visibility="Hidden"/>
                     <TextBlock x:Name="TranslatedTextBlock"
                                Margin="0,4,0,0"
                                FontSize="16"
