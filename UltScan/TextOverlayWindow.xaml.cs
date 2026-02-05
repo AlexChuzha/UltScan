@@ -231,6 +231,19 @@ public partial class TextOverlayWindow : Window
         Editor.FontSize = size;
         OriginalTextBlock.FontSize = size;
         TranslatedTextBlock.FontSize = size;
+
+        if (TranslationPanel.Visibility == Visibility.Visible)
+        {
+            AdjustHeightToContent(TranslationPanel);
+        }
+        else if (EditorPanel.Visibility == Visibility.Visible)
+        {
+            AdjustHeightToContent(EditorPanel);
+        }
+        else if (LayoutCanvas.Visibility == Visibility.Visible)
+        {
+            AdjustHeightToContent(LayoutCanvas);
+        }
     }
 
     private static System.Windows.Media.FontFamily ResolveFontFamily(string value, System.Windows.Media.FontFamily fallback)
@@ -1270,6 +1283,7 @@ public partial class TextOverlayWindow : Window
     {
         var availableWidth = Math.Max(1, width - Card.Padding.Left - Card.Padding.Right);
         Card.Width = width;
+        Card.Height = double.NaN;
         Card.Measure(new System.Windows.Size(availableWidth, double.PositiveInfinity));
         return Card.DesiredSize.Height;
     }

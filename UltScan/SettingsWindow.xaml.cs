@@ -585,7 +585,7 @@ public partial class SettingsWindow : Window
 
         var sizes = new[]
         {
-            10d, 11d, 12d, 13d, 14d, 16d, 18d, 20d, 22d, 24d, 28d, 32d
+            10d, 11d, 12d, 13d, 14d, 16d, 18d, 20d, 22d, 24d, 28d, 32d, 64d, 96d, 128d, 160d
         };
 
         var options = sizes
