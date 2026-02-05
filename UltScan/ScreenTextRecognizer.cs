@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using Windows.Graphics.Imaging;
+using Windows.Globalization;
 using Windows.Media.Ocr;
 using Windows.Storage.Streams;
 using System.Collections.Generic;
@@ -52,35 +53,42 @@ public static class ScreenTextRecognizer
         }
 
         var preprocess = IsPreprocessingEnabled();
-        Bitmap? preprocessed = null;
+        Bitmap? preBinary = null;
+        Bitmap? preSoft = null;
 
         try
         {
-            if (!preprocess)
+            var engines = GetOcrEngines();
+            if (engines.Count == 0)
             {
-                return await RecognizeFromBitmapAsync(bitmap, rect);
+                return OcrLayoutResult.Empty;
             }
 
-            preprocessed = PreprocessBitmap(bitmap);
-            var rawTask = RecognizeFromBitmapAsync(bitmap, rect);
-            var preTask = RecognizeFromBitmapAsync(preprocessed, rect);
-            await Task.WhenAll(rawTask, preTask);
+            var raw = await RecognizeBestAsync(bitmap, rect, engines);
 
-            var raw = await rawTask;
-            var filtered = await preTask;
+            var shouldTryPreprocess = preprocess ||
+                                      raw.QualityScore < 80 ||
+                                      raw.Text.Length < 20 ||
+                                      raw.Lines.Count < 2;
+            if (!shouldTryPreprocess)
+            {
+                return raw;
+            }
 
-            var rawScore = raw.QualityScore;
-            var filteredScore = filtered.QualityScore;
+            preBinary = PreprocessBitmapBinary(bitmap);
+            preSoft = PreprocessBitmapSoft(bitmap);
 
-            LogOcrComparison(raw.Text, rawScore, filtered.Text, filteredScore, filteredScore > rawScore ? "preprocessed" : "raw");
-            return filteredScore > rawScore ? filtered : raw;
+            var bin = await RecognizeBestAsync(preBinary, rect, engines);
+            var soft = await RecognizeBestAsync(preSoft, rect, engines);
+
+            var best = PickBest(raw, bin, soft);
+            LogOcrCandidates(best, raw, bin, soft);
+            return best;
         }
         finally
         {
-            if (preprocess && preprocessed != null)
-            {
-                preprocessed.Dispose();
-            }
+            preBinary?.Dispose();
+            preSoft?.Dispose();
         }
     }
 
@@ -94,7 +102,7 @@ public static class ScreenTextRecognizer
         return false;
     }
 
-    private static Bitmap PreprocessBitmap(Bitmap source)
+    private static Bitmap PreprocessBitmapBinary(Bitmap source)
     {
         const int scale = 2;
         const double contrast = 1.6;
@@ -146,7 +154,112 @@ public static class ScreenTextRecognizer
         return scaled;
     }
 
-    private static async Task<OcrLayoutResult> RecognizeFromBitmapAsync(Bitmap bitmap, Rect rect)
+    private static Bitmap PreprocessBitmapSoft(Bitmap source)
+    {
+        const int scale = 2;
+        const double contrast = 1.35;
+        const double gamma = 0.9;
+
+        var scaled = new Bitmap(source.Width * scale, source.Height * scale, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+        using (var graphics = Graphics.FromImage(scaled))
+        {
+            graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            graphics.SmoothingMode = SmoothingMode.HighQuality;
+            graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            graphics.DrawImage(source, new Rectangle(0, 0, scaled.Width, scaled.Height));
+        }
+
+        var rect = new Rectangle(0, 0, scaled.Width, scaled.Height);
+        var data = scaled.LockBits(rect, ImageLockMode.ReadWrite, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+        var stride = data.Stride;
+        var byteCount = Math.Abs(stride) * scaled.Height;
+        var buffer = new byte[byteCount];
+
+        System.Runtime.InteropServices.Marshal.Copy(data.Scan0, buffer, 0, byteCount);
+
+        for (int y = 0; y < scaled.Height; y++)
+        {
+            var rowOffset = y * stride;
+            for (int x = 0; x < scaled.Width; x++)
+            {
+                var idx = rowOffset + (x * 3);
+                var b = buffer[idx];
+                var g = buffer[idx + 1];
+                var r = buffer[idx + 2];
+
+                var gray = (0.299 * r) + (0.587 * g) + (0.114 * b);
+                var norm = (gray / 255.0) - 0.5;
+                var boosted = Math.Clamp((norm * contrast) + 0.5, 0, 1);
+                var gammaAdjusted = Math.Clamp(Math.Pow(boosted, gamma), 0, 1);
+                var level = (byte)Math.Round(gammaAdjusted * 255);
+
+                buffer[idx] = level;
+                buffer[idx + 1] = level;
+                buffer[idx + 2] = level;
+            }
+        }
+
+        System.Runtime.InteropServices.Marshal.Copy(buffer, 0, data.Scan0, byteCount);
+        scaled.UnlockBits(data);
+        return scaled;
+    }
+
+    private static List<OcrEngine> GetOcrEngines()
+    {
+        var engines = new List<OcrEngine>();
+        var userEngine = OcrEngine.TryCreateFromUserProfileLanguages();
+        if (userEngine != null)
+        {
+            engines.Add(userEngine);
+        }
+
+        var english = new Language("en");
+        if (OcrEngine.IsLanguageSupported(english))
+        {
+            var enEngine = OcrEngine.TryCreateFromLanguage(english);
+            if (enEngine != null && (userEngine == null || enEngine.RecognizerLanguage.LanguageTag != userEngine.RecognizerLanguage.LanguageTag))
+            {
+                engines.Add(enEngine);
+            }
+        }
+
+        return engines;
+    }
+
+    private static async Task<OcrLayoutResult> RecognizeBestAsync(Bitmap bitmap, Rect rect, List<OcrEngine> engines)
+    {
+        OcrLayoutResult? best = null;
+        foreach (var engine in engines)
+        {
+            var current = await RecognizeFromBitmapAsync(bitmap, rect, engine);
+            best = best == null ? current : PickBest(best, current);
+        }
+
+        return best ?? new OcrLayoutResult(string.Empty, Array.Empty<OcrLineLayout>(), 0);
+    }
+
+    private static OcrLayoutResult PickBest(OcrLayoutResult a, OcrLayoutResult b)
+    {
+        if (a.QualityScore != b.QualityScore)
+        {
+            return a.QualityScore > b.QualityScore ? a : b;
+        }
+
+        return a.Text.Length >= b.Text.Length ? a : b;
+    }
+
+    private static OcrLayoutResult PickBest(params OcrLayoutResult[] results)
+    {
+        var best = results.Length > 0 ? results[0] : OcrLayoutResult.Empty;
+        for (int i = 1; i < results.Length; i++)
+        {
+            best = PickBest(best, results[i]);
+        }
+
+        return best;
+    }
+
+    private static async Task<OcrLayoutResult> RecognizeFromBitmapAsync(Bitmap bitmap, Rect rect, OcrEngine engine)
     {
         using var stream = new InMemoryRandomAccessStream();
         bitmap.Save(stream.AsStreamForWrite(), ImageFormat.Bmp);
@@ -156,12 +269,6 @@ public static class ScreenTextRecognizer
         var softwareBitmap = await decoder.GetSoftwareBitmapAsync(
             BitmapPixelFormat.Bgra8,
             BitmapAlphaMode.Premultiplied);
-
-        var engine = OcrEngine.TryCreateFromUserProfileLanguages();
-        if (engine == null)
-        {
-            return OcrLayoutResult.Empty;
-        }
 
         var result = await engine.RecognizeAsync(softwareBitmap);
         if (result == null)
@@ -266,7 +373,7 @@ public static class ScreenTextRecognizer
                ch == '-' || ch == '(' || ch == ')';
     }
 
-    private static void LogOcrComparison(string rawText, int rawScore, string preText, int preScore, string chosen)
+    private static void LogOcrCandidates(OcrLayoutResult chosen, OcrLayoutResult raw, OcrLayoutResult bin, OcrLayoutResult soft)
     {
         try
         {
@@ -274,11 +381,13 @@ public static class ScreenTextRecognizer
             Directory.CreateDirectory(root);
 
             File.WriteAllText(Path.Combine(root, "ocr_raw.txt"),
-                $"score={rawScore}{Environment.NewLine}{rawText}");
-            File.WriteAllText(Path.Combine(root, "ocr_pre.txt"),
-                $"score={preScore}{Environment.NewLine}{preText}");
+                $"score={raw.QualityScore}{Environment.NewLine}{raw.Text}");
+            File.WriteAllText(Path.Combine(root, "ocr_bin.txt"),
+                $"score={bin.QualityScore}{Environment.NewLine}{bin.Text}");
+            File.WriteAllText(Path.Combine(root, "ocr_soft.txt"),
+                $"score={soft.QualityScore}{Environment.NewLine}{soft.Text}");
             File.WriteAllText(Path.Combine(root, "ocr_chosen.txt"),
-                $"chosen={chosen}{Environment.NewLine}raw={rawScore} pre={preScore}");
+                $"chosen_score={chosen.QualityScore}{Environment.NewLine}{chosen.Text}");
         }
         catch
         {

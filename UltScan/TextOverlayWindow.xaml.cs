@@ -574,13 +574,13 @@ public partial class TextOverlayWindow : Window
             var ratio = GetChangeRatio(normalized, _lastCandidate);
             if (ratio < app.Settings.Translation.MinChangeRatio)
             {
-                if (qualityScore > _bestCandidateScore)
+                if (IsBetterCandidate(text, qualityScore))
                 {
                     _bestCandidateScore = qualityScore;
                     _bestCandidateText = text;
                     _bestCandidateLines = lines.ToList();
                 }
-                LogDebug($"noise: ratio={ratio:F3} score={qualityScore} best={_bestCandidateScore}");
+                LogDebug($"noise: ratio={ratio:F3} score={qualityScore} best={_bestCandidateScore} len={text.Length}");
             }
             else
             {
@@ -618,12 +618,12 @@ public partial class TextOverlayWindow : Window
         }
 
     ContinueStability:
-        if (qualityScore > _bestCandidateScore)
+        if (IsBetterCandidate(text, qualityScore))
         {
             _bestCandidateScore = qualityScore;
             _bestCandidateText = text;
             _bestCandidateLines = lines.ToList();
-            LogDebug($"improve best: score={qualityScore}");
+            LogDebug($"improve best: score={qualityScore} len={text.Length}");
         }
 
         var stableFor = DateTime.UtcNow - _lastChangeUtc;
@@ -733,6 +733,22 @@ public partial class TextOverlayWindow : Window
         catch
         {
         }
+    }
+
+    private bool IsBetterCandidate(string text, int score)
+    {
+        if (score > _bestCandidateScore)
+        {
+            return true;
+        }
+
+        var lengthGain = text.Length - _bestCandidateText.Length;
+        if (lengthGain >= 8 && score >= _bestCandidateScore - 6)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     public void UpdateCaptureRect(Rect rect)
