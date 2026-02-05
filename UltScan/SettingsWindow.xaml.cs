@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -23,6 +23,7 @@ public partial class SettingsWindow : Window
     private bool _suppressAutoStartChange;
     private bool _suppressOverlayChange;
     private bool _suppressAppearanceChange;
+    private bool _suppressFontChange;
     private bool _showAllLanguages;
     private bool _isCheckingUpdates;
     private readonly ProviderOption[] _providerOptions;
@@ -205,6 +206,21 @@ public partial class SettingsWindow : Window
         _pendingSettings.Translation.TranslatedTextColor = option.TextHex;
         MarkDirty();
     }
+    private void TranslationFont_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressFontChange)
+        {
+            return;
+        }
+
+        if (TranslationFontCombo.SelectedItem is not FontOption option)
+        {
+            return;
+        }
+
+        _pendingSettings.Translation.OverlayFontFamily = option.Id;
+        MarkDirty();
+    }
 
     private void TranslationMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -375,6 +391,7 @@ public partial class SettingsWindow : Window
         TranslationEnabledCheckBox.Content = _loc["Settings.TranslationEnabled"];
         TranslationBoldCheckBox.Content = _loc["Settings.TranslationBold"];
         TranslationColorLabel.Text = _loc["Settings.TranslationTextColor"];
+        TranslationFontLabel.Text = _loc["Settings.TranslationFont"];
         TranslationModeLabel.Text = _loc["Settings.TranslationMode"];
         TranslationSourceLabel.Text = _loc["Settings.TranslationSource"];
         TranslationTargetLabel.Text = _loc["Settings.TranslationTarget"];
@@ -443,6 +460,7 @@ public partial class SettingsWindow : Window
 
         TranslationColorCombo.ItemsSource = themeItems;
         TranslationColorCombo.SelectedItem = selectedTheme ?? themeItems.FirstOrDefault();
+        RebuildFontOptions();
         _suppressAppearanceChange = false;
         RebuildTranslationModes();
         TranslationProjectTextBox.Text = _pendingSettings.Translation.ProjectId;
@@ -518,6 +536,64 @@ public partial class SettingsWindow : Window
             : _loc["Settings.LanguagesMore"];
 
         _suppressTranslationChange = false;
+    }
+    private void RebuildFontOptions()
+    {
+        _suppressFontChange = true;
+
+        var defaultLabel = _loc["Settings.TranslationFontDefault"];
+        var options = Fonts.SystemFontFamilies
+            .Select(f => new FontOption(f.Source, f) { DisplayName = f.Source })
+            .OrderBy(o => o.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        options.Insert(0, new FontOption(string.Empty, System.Windows.SystemFonts.MessageFontFamily)
+        {
+            DisplayName = defaultLabel
+        });
+
+        var selected = EnsureSelectedFontOption(options, _pendingSettings.Translation.OverlayFontFamily);
+
+        TranslationFontCombo.ItemsSource = options;
+        TranslationFontCombo.SelectedItem = selected;
+
+        _suppressFontChange = false;
+    }
+
+    private static FontOption EnsureSelectedFontOption(List<FontOption> options, string fontId)
+    {
+        if (string.IsNullOrWhiteSpace(fontId))
+        {
+            return options.FirstOrDefault() ?? new FontOption(string.Empty, System.Windows.SystemFonts.MessageFontFamily);
+        }
+
+        var existing = options.FirstOrDefault(o => string.Equals(o.Id, fontId, StringComparison.OrdinalIgnoreCase));
+        if (existing != null)
+        {
+            return existing;
+        }
+
+        var fallbackFamily = TryCreateFontFamily(fontId, System.Windows.SystemFonts.MessageFontFamily);
+        var inserted = new FontOption(fontId, fallbackFamily) { DisplayName = fontId };
+        options.Insert(Math.Min(1, options.Count), inserted);
+        return inserted;
+    }
+
+    private static System.Windows.Media.FontFamily TryCreateFontFamily(string fontId, System.Windows.Media.FontFamily fallback)
+    {
+        if (string.IsNullOrWhiteSpace(fontId))
+        {
+            return fallback;
+        }
+
+        try
+        {
+            return new System.Windows.Media.FontFamily(fontId);
+        }
+        catch
+        {
+            return fallback;
+        }
     }
 
     private static void EnsureSelectedLanguage(List<LanguageOption> list, string code, bool includeAuto)
@@ -722,6 +798,7 @@ public partial class SettingsWindow : Window
             TranslatedBold = source.Translation.TranslatedBold,
             TranslatedTextColor = source.Translation.TranslatedTextColor,
             CaptionTextColor = source.Translation.CaptionTextColor,
+            OverlayFontFamily = source.Translation.OverlayFontFamily,
             Mode = source.Translation.Mode,
             SourceLanguage = source.Translation.SourceLanguage,
             TargetLanguage = source.Translation.TargetLanguage,
@@ -830,6 +907,19 @@ public partial class SettingsWindow : Window
         public string HintKey { get; }
         public string DisplayName { get; set; }
     }
+    private sealed class FontOption
+    {
+        public FontOption(string id, System.Windows.Media.FontFamily fontFamily)
+        {
+            Id = id;
+            FontFamily = fontFamily;
+            DisplayName = id;
+        }
+
+        public string Id { get; }
+        public System.Windows.Media.FontFamily FontFamily { get; }
+        public string DisplayName { get; set; }
+    }
 
     private sealed class ThemeOption
     {
@@ -855,3 +945,6 @@ public partial class SettingsWindow : Window
         public string SampleBody { get; set; }
     }
 }
+
+
+

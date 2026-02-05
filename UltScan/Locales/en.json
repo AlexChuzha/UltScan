@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "en",
   "name": "English",
   "strings": {
@@ -26,7 +26,9 @@
     "Settings.TranslationConnectionHeader": "Google Translate connection",
     "Settings.TranslationEnabled": "Enable translation",
     "Settings.TranslationBold": "Bold translated text",
-    "Settings.TranslationTextColor": "Translation color theme",
+    "Settings.TranslationTextColor": "Translation color theme",
+    "Settings.TranslationFont": "Overlay text font",
+    "Settings.TranslationFontDefault": "Default (system)",
     "Settings.TranslationThemeEmerald": "Emerald",
     "Settings.TranslationThemeSky": "Sky",
     "Settings.TranslationThemeAmber": "Amber",
@@ -94,8 +96,8 @@
     ,
     "HotKey.Custom": "Custom"
     ,
-    "Overlay.TranslatedHeader": "Translation • {0}",
-    "Overlay.Translating": "Translating…"
+    "Overlay.TranslatedHeader": "Translation вЂў {0}",
+    "Overlay.Translating": "TranslatingвЂ¦"
     ,
     "Overlay.CloseTooltip": "Close overlay",
     "Overlay.ManualTranslateTooltip": "Refresh OCR and translation",
@@ -105,13 +107,14 @@
     "Welcome.Title": "Welcome",
     "Welcome.Header": "Welcome to UltScan",
     "Welcome.Body": "UltScan translates text from any part of your screen. Use the hotkey to select a region and the overlay will show the recognized text or translation.",
-    "Welcome.Action": "Click “Next” to open a demo window where you can try the translation.",
+    "Welcome.Action": "Click вЂњNextвЂќ to open a demo window where you can try the translation.",
     "Welcome.Next": "Next"
     ,
     "Demo.Title": "Try it now",
     "Demo.Header": "Try the translation now",
     "Demo.Subtitle": "You will now test the app on a sample text.",
     "Demo.Hint": "Press {0} and select the text inside the frame.",
-    "Demo.Next": "Next → Settings"
+    "Demo.Next": "Next в†’ Settings"
   }
 }
+

@@ -23,6 +23,8 @@ public partial class TextOverlayWindow : Window
     private System.Windows.Media.Brush _defaultOuterBorderBrush = System.Windows.Media.Brushes.Transparent;
     private System.Windows.Media.Brush _defaultInnerBorderBrush = System.Windows.Media.Brushes.Transparent;
     private System.Windows.Media.Brush _defaultTextBrush = System.Windows.Media.Brushes.White;
+
+    private System.Windows.Media.FontFamily _defaultOriginalFontFamily = System.Windows.SystemFonts.MessageFontFamily;
     private System.Windows.Media.Brush _translatedTextBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 76, 217, 100));
     private System.Windows.Media.Brush _captionTextBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 200, 255, 212));
     private System.Threading.CancellationTokenSource? _translationCts;
@@ -71,6 +73,7 @@ public partial class TextOverlayWindow : Window
         _defaultBorderBrush = Card.BorderBrush;
         _defaultBorderThickness = Card.BorderThickness;
         _defaultTextBrush = Editor.Foreground;
+        _defaultOriginalFontFamily = Editor.FontFamily;
         _defaultOuterBorderBrush = OuterBorder.BorderBrush;
         _defaultInnerBorderBrush = InnerBorder.BorderBrush;
     }
@@ -86,6 +89,7 @@ public partial class TextOverlayWindow : Window
         _captionTextBrush = new SolidColorBrush(ParseColorOrDefault(
             app.Settings.Translation.CaptionTextColor,
             System.Windows.Media.Color.FromArgb(255, 200, 255, 212)));
+        ApplyTextFonts();
         UpdateTranslatedTextColors();
     }
 
@@ -213,6 +217,32 @@ public partial class TextOverlayWindow : Window
                 run.Foreground = useCaption ? _captionTextBrush : _translatedTextBrush;
                 useCaption = !useCaption;
             }
+        }
+    }
+    private void ApplyTextFonts()
+    {
+        var app = (App)System.Windows.Application.Current;
+        var font = ResolveFontFamily(app.Settings.Translation.OverlayFontFamily, _defaultOriginalFontFamily);
+
+        Editor.FontFamily = font;
+        OriginalTextBlock.FontFamily = font;
+        TranslatedTextBlock.FontFamily = font;
+    }
+
+    private static System.Windows.Media.FontFamily ResolveFontFamily(string value, System.Windows.Media.FontFamily fallback)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return fallback;
+        }
+
+        try
+        {
+            return new System.Windows.Media.FontFamily(value);
+        }
+        catch
+        {
+            return fallback;
         }
     }
 
@@ -1171,6 +1201,7 @@ public partial class TextOverlayWindow : Window
                 Text = line.Text,
                 FontSize = Editor.FontSize,
                 FontWeight = Editor.FontWeight,
+                FontFamily = Editor.FontFamily,
                 Foreground = Editor.Foreground,
                 TextWrapping = TextWrapping.NoWrap
             };
@@ -1252,3 +1283,11 @@ public partial class TextOverlayWindow : Window
         OverlayPath.Data = combined;
     }
 }
+
+
+
+
+
+
+
+

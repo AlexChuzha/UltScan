@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Text.Json;
 
@@ -81,7 +81,8 @@ public sealed class TranslationSettings
     public bool Enabled { get; set; } = true;
     public bool TranslatedBold { get; set; }
     public string TranslatedTextColor { get; set; } = "#4CD964";
-    public string CaptionTextColor { get; set; } = "#C8FFD4";
+    public string CaptionTextColor { get; set; } = "#C8FFD4";
+    public string OverlayFontFamily { get; set; } = string.Empty;
     public TranslationMode Mode { get; set; } = TranslationMode.Standard;
     public string SourceLanguage { get; set; } = "auto";
     public string TargetLanguage { get; set; } = string.Empty;
@@ -105,3 +106,5 @@ public sealed class HotKeyConfig
     public ModifierKeys Modifiers { get; set; } = HotKeyPresets.Default.Modifiers;
     public uint VirtualKey { get; set; } = HotKeyPresets.Default.VirtualKey;
 }
+
+
