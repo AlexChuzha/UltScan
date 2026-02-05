@@ -222,6 +222,22 @@ public partial class SettingsWindow : Window
         MarkDirty();
     }
 
+    
+    private void TranslationFontSize_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressFontChange)
+        {
+            return;
+        }
+
+        if (TranslationFontSizeCombo.SelectedItem is not FontSizeOption option)
+        {
+            return;
+        }
+
+        _pendingSettings.Translation.OverlayFontSize = option.Value;
+        MarkDirty();
+    }
     private void TranslationMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_suppressTranslationChange)
@@ -392,6 +408,7 @@ public partial class SettingsWindow : Window
         TranslationBoldCheckBox.Content = _loc["Settings.TranslationBold"];
         TranslationColorLabel.Text = _loc["Settings.TranslationTextColor"];
         TranslationFontLabel.Text = _loc["Settings.TranslationFont"];
+        TranslationFontSizeLabel.Text = _loc["Settings.TranslationFontSize"];
         TranslationModeLabel.Text = _loc["Settings.TranslationMode"];
         TranslationSourceLabel.Text = _loc["Settings.TranslationSource"];
         TranslationTargetLabel.Text = _loc["Settings.TranslationTarget"];
@@ -461,6 +478,7 @@ public partial class SettingsWindow : Window
         TranslationColorCombo.ItemsSource = themeItems;
         TranslationColorCombo.SelectedItem = selectedTheme ?? themeItems.FirstOrDefault();
         RebuildFontOptions();
+        RebuildFontSizeOptions();
         _suppressAppearanceChange = false;
         RebuildTranslationModes();
         TranslationProjectTextBox.Text = _pendingSettings.Translation.ProjectId;
@@ -560,6 +578,29 @@ public partial class SettingsWindow : Window
         _suppressFontChange = false;
     }
 
+    
+    private void RebuildFontSizeOptions()
+    {
+        _suppressFontChange = true;
+
+        var sizes = new[]
+        {
+            10d, 11d, 12d, 13d, 14d, 16d, 18d, 20d, 22d, 24d, 28d, 32d
+        };
+
+        var options = sizes
+            .Select(s => new FontSizeOption(s))
+            .ToList();
+
+        var selected = options.FirstOrDefault(o =>
+            Math.Abs(o.Value - _pendingSettings.Translation.OverlayFontSize) < 0.01)
+            ?? options.FirstOrDefault();
+
+        TranslationFontSizeCombo.ItemsSource = options;
+        TranslationFontSizeCombo.SelectedItem = selected ?? options.FirstOrDefault();
+
+        _suppressFontChange = false;
+    }
     private static FontOption EnsureSelectedFontOption(List<FontOption> options, string fontId)
     {
         if (string.IsNullOrWhiteSpace(fontId))
@@ -799,6 +840,7 @@ public partial class SettingsWindow : Window
             TranslatedTextColor = source.Translation.TranslatedTextColor,
             CaptionTextColor = source.Translation.CaptionTextColor,
             OverlayFontFamily = source.Translation.OverlayFontFamily,
+            OverlayFontSize = source.Translation.OverlayFontSize,
             Mode = source.Translation.Mode,
             SourceLanguage = source.Translation.SourceLanguage,
             TargetLanguage = source.Translation.TargetLanguage,
@@ -921,6 +963,19 @@ public partial class SettingsWindow : Window
         public string DisplayName { get; set; }
     }
 
+    private sealed class FontSizeOption
+    {
+        public FontSizeOption(double value)
+        {
+            Value = value;
+            DisplayName = value % 1 == 0 ? ((int)value).ToString() : value.ToString("0.#");
+        }
+
+        public double Value { get; }
+        public string DisplayName { get; }
+        public override string ToString() => DisplayName;
+    }
+
     private sealed class ThemeOption
     {
         public ThemeOption(string captionHex, string textHex, string nameKey)
@@ -945,6 +1000,7 @@ public partial class SettingsWindow : Window
         public string SampleBody { get; set; }
     }
 }
+
 
 
 

@@ -28,6 +28,7 @@
     "Settings.TranslationBold": "Bold translated text",
     "Settings.TranslationTextColor": "Translation color theme",
     "Settings.TranslationFont": "Overlay text font",
+    "Settings.TranslationFontSize": "Font size",
     "Settings.TranslationFontDefault": "Default (system)",
     "Settings.TranslationThemeEmerald": "Emerald",
     "Settings.TranslationThemeSky": "Sky",

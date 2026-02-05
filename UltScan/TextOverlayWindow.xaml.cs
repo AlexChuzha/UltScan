@@ -223,10 +223,14 @@ public partial class TextOverlayWindow : Window
     {
         var app = (App)System.Windows.Application.Current;
         var font = ResolveFontFamily(app.Settings.Translation.OverlayFontFamily, _defaultOriginalFontFamily);
+        var size = Math.Max(10, app.Settings.Translation.OverlayFontSize);
 
         Editor.FontFamily = font;
         OriginalTextBlock.FontFamily = font;
         TranslatedTextBlock.FontFamily = font;
+        Editor.FontSize = size;
+        OriginalTextBlock.FontSize = size;
+        TranslatedTextBlock.FontSize = size;
     }
 
     private static System.Windows.Media.FontFamily ResolveFontFamily(string value, System.Windows.Media.FontFamily fallback)
