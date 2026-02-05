@@ -77,6 +77,7 @@ public partial class PinButtonWindow : Window
             var clamped = ClampCandidate(new System.Windows.Point(x, y), bounds, Width, Height);
             Left = clamped.X;
             Top = clamped.Y;
+            UpdatePanelCorners(output);
             return;
         }
 
@@ -107,6 +108,31 @@ public partial class PinButtonWindow : Window
 
         Left = chosen.X;
         Top = chosen.Y;
+        if (avoidRect.HasValue)
+        {
+            UpdatePanelCorners(avoidRect.Value);
+        }
+        else
+        {
+            PanelRoot.CornerRadius = new CornerRadius(8);
+        }
+    }
+
+    private void UpdatePanelCorners(Rect outputRect)
+    {
+        if (Top + Height <= outputRect.Top)
+        {
+            PanelRoot.CornerRadius = new CornerRadius(8, 8, 0, 0);
+            return;
+        }
+
+        if (Top >= outputRect.Bottom)
+        {
+            PanelRoot.CornerRadius = new CornerRadius(0, 0, 8, 8);
+            return;
+        }
+
+        PanelRoot.CornerRadius = new CornerRadius(8);
     }
 
     private static System.Windows.Point? FindCandidate(
