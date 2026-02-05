@@ -57,6 +57,8 @@
     "Settings.ExperimentalMode": "Experimental mode",
     "Settings.ExperimentalPreprocess": "Experimental feature. Image preprocessing",
     "Settings.ExperimentalPreprocessHint": "Improves OCR on complex backgrounds (games/overlays), but may be unstable.",
+    "Settings.ExperimentalTranslationLog": "Log OCR and translations",
+    "Settings.ExperimentalTranslationLogHint": "Writes recognized text and its translation to log files in: {0}",
     "Settings.ExperimentalHeader": "Experimental",
     "Settings.OpenWelcome": "Open welcome & demo",
     "Settings.OverlayHeader": "Overlay",

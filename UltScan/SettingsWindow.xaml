@@ -306,6 +306,17 @@
                                            TextWrapping="Wrap"
                                            Foreground="#555"/>
 
+                                <CheckBox x:Name="ExperimentalTranslationLogCheckBox"
+                                          Margin="0,10,0,0"
+                                          Content="Log OCR and translations"
+                                          Checked="ExperimentalTranslationLog_Changed"
+                                          Unchecked="ExperimentalTranslationLog_Changed"/>
+
+                                <TextBlock x:Name="ExperimentalTranslationLogHint"
+                                           Margin="0,6,0,0"
+                                           TextWrapping="Wrap"
+                                           Foreground="#555"/>
+
                                 <TextBlock x:Name="ExperimentalWarningText"
                                            Margin="0,8,0,0"
                                            TextWrapping="Wrap"

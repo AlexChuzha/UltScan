@@ -382,6 +382,17 @@ public partial class SettingsWindow : Window
         MarkDirty();
     }
 
+    private void ExperimentalTranslationLog_Changed(object sender, RoutedEventArgs e)
+    {
+        if (ExperimentalTranslationLogCheckBox.IsChecked == null)
+        {
+            return;
+        }
+
+        _pendingSettings.ExperimentalTranslationLogging = ExperimentalTranslationLogCheckBox.IsChecked.Value;
+        MarkDirty();
+    }
+
     public void RefreshLocalization()
     {
         _suppressDirty = true;
@@ -398,6 +409,10 @@ public partial class SettingsWindow : Window
         ExperimentalModeCheckBox.Content = _loc["Settings.ExperimentalMode"];
         ExperimentalPreprocessCheckBox.Content = _loc["Settings.ExperimentalPreprocess"];
         ExperimentalPreprocessHint.Text = _loc["Settings.ExperimentalPreprocessHint"];
+        ExperimentalTranslationLogCheckBox.Content = _loc["Settings.ExperimentalTranslationLog"];
+        ExperimentalTranslationLogHint.Text = string.Format(
+            _loc["Settings.ExperimentalTranslationLogHint"],
+            TranslationLogger.LogsFolder);
         ExperimentalWarningText.Text = _loc["Settings.ExperimentalWarning"];
         OpenWelcomeButton.Content = _loc["Settings.OpenWelcome"];
         CheckUpdatesButton.Content = _loc["Settings.CheckUpdates"];
@@ -439,6 +454,7 @@ public partial class SettingsWindow : Window
 
         ExperimentalModeCheckBox.IsChecked = _pendingSettings.ExperimentalMode;
         ExperimentalPreprocessCheckBox.IsChecked = _pendingSettings.ExperimentalImagePreprocessing;
+        ExperimentalTranslationLogCheckBox.IsChecked = _pendingSettings.ExperimentalTranslationLogging;
         TranslationEnabledCheckBox.IsChecked = _pendingSettings.Translation.Enabled;
         TranslationBoldCheckBox.IsChecked = _pendingSettings.Translation.TranslatedBold;
         _suppressAppearanceChange = true;
@@ -828,6 +844,7 @@ public partial class SettingsWindow : Window
         target.AutoStart = source.AutoStart;
         target.ExperimentalMode = source.ExperimentalMode;
         target.ExperimentalImagePreprocessing = source.ExperimentalImagePreprocessing;
+        target.ExperimentalTranslationLogging = source.ExperimentalTranslationLogging;
         target.Overlay = new OverlaySettings
         {
             Orientation = source.Overlay.Orientation,

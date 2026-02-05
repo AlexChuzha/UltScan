@@ -13,6 +13,7 @@ public sealed class AppSettings
     public TranslationSettings Translation { get; set; } = new();
     public OverlaySettings Overlay { get; set; } = new();
     public bool ExperimentalImagePreprocessing { get; set; }
+    public bool ExperimentalTranslationLogging { get; set; }
 
     public static AppSettings Default => new();
 

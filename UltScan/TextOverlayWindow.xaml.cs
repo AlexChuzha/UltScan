@@ -337,7 +337,8 @@ public partial class TextOverlayWindow : Window
 
         foreach (var orientation in GetOrientationOrder(preferred))
         {
-            var candidate = ComputeLayout(orientation, translationWidth, translationHeight);
+            var cappedHeight = Math.Min(translationHeight, GetMaxTranslationHeight(orientation, screen));
+            var candidate = ComputeLayout(orientation, translationWidth, cappedHeight);
             if (Fits(candidate.WindowRect, screen))
             {
                 chosen = orientation;
@@ -350,7 +351,8 @@ public partial class TextOverlayWindow : Window
 
         if (windowRect.Width <= 0 || windowRect.Height <= 0)
         {
-            var fallback = ComputeLayout(chosen, translationWidth, translationHeight);
+            var cappedHeight = Math.Min(translationHeight, GetMaxTranslationHeight(chosen, screen));
+            var fallback = ComputeLayout(chosen, translationWidth, cappedHeight);
             windowRect = fallback.WindowRect;
             holeRect = fallback.HoleRect;
             translationRect = fallback.TranslationRect;
@@ -461,6 +463,24 @@ public partial class TextOverlayWindow : Window
         var translationRect = new Rect(translationX, translationY, translationWidth, translationHeight);
 
         return (windowRect, holeRect, translationRect);
+    }
+
+    private double GetMaxTranslationHeight(OverlayOrientation orientation, Rectangle bounds)
+    {
+        var pad = PlatePadding;
+        switch (orientation)
+        {
+            case OverlayOrientation.Top:
+                return Math.Max(1, _captureRect.Top - bounds.Top - pad);
+            case OverlayOrientation.Bottom:
+                return Math.Max(1, bounds.Bottom - _captureRect.Bottom - pad);
+            case OverlayOrientation.Left:
+            case OverlayOrientation.Right:
+            default:
+                var top = _captureRect.Top - pad;
+                var limit = bounds.Bottom - top - pad;
+                return Math.Max(1, limit);
+        }
     }
 
     private static bool Fits(Rect rect, Rectangle bounds)
@@ -686,6 +706,12 @@ public partial class TextOverlayWindow : Window
             LogDebug("skip: translation null");
             return;
         }
+
+        var translatedText = translatedBodies != null && blocks != null
+            ? ComposeStructuredText(blocks, translatedBodies)
+            : (translated ?? string.Empty);
+
+        TranslationLogger.LogPair(stableText, translatedText);
 
         await Dispatcher.InvokeAsync(() =>
         {
