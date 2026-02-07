@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -116,6 +117,38 @@ public partial class SettingsWindow : Window
     private void Apply_Click(object sender, RoutedEventArgs e)
     {
         TryApplySettings();
+    }
+
+    private void Reset_Click(object sender, RoutedEventArgs e)
+    {
+        var confirm = System.Windows.MessageBox.Show(
+            _loc["Settings.ResetConfirm"],
+            _loc["Message.Title"],
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var defaults = AppSettings.Default;
+        if (string.IsNullOrWhiteSpace(defaults.LocaleId))
+        {
+            var osLocale = CultureInfo.CurrentUICulture.Name;
+            defaults.LocaleId = _app.Localization.GetBestLocaleId(osLocale);
+        }
+
+        if (!_app.TryApplyHotKey(defaults.HotKey, showError: true))
+        {
+            return;
+        }
+
+        _pendingSettings = CloneSettings(defaults);
+        ApplyPendingSettings();
+        _originalSettings = CloneSettings(_pendingSettings);
+        _hasUnsavedChanges = false;
+        ApplyButton.IsEnabled = false;
+        RefreshLocalization();
     }
 
     private bool TryApplySettings()
@@ -432,6 +465,7 @@ public partial class SettingsWindow : Window
         CheckUpdatesButton.Content = _loc["Settings.CheckUpdates"];
         SaveButton.Content = _loc["Settings.Save"];
         ApplyButton.Content = _loc["Settings.Apply"];
+        ResetButton.Content = _loc["Settings.Reset"];
         CancelButton.Content = _loc["Settings.Cancel"];
         TranslationEnabledCheckBox.Content = _loc["Settings.TranslationEnabled"];
         TranslationBoldCheckBox.Content = _loc["Settings.TranslationBold"];
@@ -455,6 +489,8 @@ public partial class SettingsWindow : Window
         OverlayOpacityLabel.Text = _loc["Settings.OverlayOpacity"];
         OverlayCtrlResizeCheckBox.Content = _loc["Settings.OverlayCtrlResize"];
         OverlayCtrlResizeWarning.Text = _loc["Settings.OverlayCtrlResizeWarning"];
+        ResetHeaderText.Text = _loc["Settings.ResetHeader"];
+        ResetHintText.Text = _loc["Settings.ResetHint"];
 
         RebuildHotKeyItems();
         RebuildTranslationLanguageLists();

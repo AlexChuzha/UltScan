@@ -42,12 +42,12 @@
                             </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Margin="0,0,0,12">
-                            <GroupBox.Header>
-                                <TextBlock x:Name="HotkeysGroupHeader"
-                                           FontWeight="SemiBold"/>
-                            </GroupBox.Header>
-                            <StackPanel Margin="8">
+                          <GroupBox Margin="0,0,0,12">
+                              <GroupBox.Header>
+                                  <TextBlock x:Name="HotkeysGroupHeader"
+                                             FontWeight="SemiBold"/>
+                              </GroupBox.Header>
+                              <StackPanel Margin="8">
                                 <TextBlock x:Name="HotkeysContext"
                                            Margin="0,0,0,8"
                                            TextWrapping="Wrap"
@@ -67,16 +67,32 @@
                                            TextWrapping="Wrap"
                                            Foreground="#444"/>
 
-                                <TextBlock x:Name="WarningText"
-                                           Margin="0,8,0,0"
-                                           TextWrapping="Wrap"
-                                           Foreground="#B00020"
-                                           Visibility="Collapsed"/>
-                            </StackPanel>
-                        </GroupBox>
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
+                                  <TextBlock x:Name="WarningText"
+                                             Margin="0,8,0,0"
+                                             TextWrapping="Wrap"
+                                             Foreground="#B00020"
+                                             Visibility="Collapsed"/>
+                              </StackPanel>
+                          </GroupBox>
+
+                          <GroupBox>
+                              <GroupBox.Header>
+                                  <TextBlock x:Name="ResetHeaderText"
+                                             FontWeight="SemiBold"/>
+                              </GroupBox.Header>
+                              <StackPanel Margin="8">
+                                  <TextBlock x:Name="ResetHintText"
+                                             Margin="0,0,0,8"
+                                             TextWrapping="Wrap"
+                                             Foreground="#555"/>
+                                  <Button x:Name="ResetButton"
+                                          Width="180"
+                                          Click="Reset_Click"/>
+                              </StackPanel>
+                          </GroupBox>
+                      </StackPanel>
+                  </ScrollViewer>
+              </TabItem>
 
             <TabItem x:Name="TranslationTab">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -202,7 +218,8 @@
                             </StackPanel>
                         </GroupBox>
 
-                        <GroupBox Margin="0,0,0,12">
+                        <GroupBox Margin="0,0,0,12"
+                                  Visibility="Collapsed">
                             <GroupBox.Header>
                                 <TextBlock x:Name="TranslationConnectionHeaderText"
                                            FontWeight="SemiBold"/>
