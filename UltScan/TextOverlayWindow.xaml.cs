@@ -4,8 +4,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls.Primitives;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Threading;
 using System.Drawing;
 using Forms = System.Windows.Forms;
 
@@ -15,6 +17,7 @@ public partial class TextOverlayWindow : Window
 {
     private const double PlatePadding = 12;
     private const int ShortTextLimit = 10;
+    private const double MinCaptureSize = 50;
     private Rect _captureRect;
     private System.Windows.Media.Brush _defaultBackground = System.Windows.Media.Brushes.Transparent;
     private System.Windows.Media.Brush _defaultOverlayBackground = System.Windows.Media.Brushes.Transparent;
@@ -41,6 +44,15 @@ public partial class TextOverlayWindow : Window
     private Rect _translationRect;
     private DateTime _lastDebugLogUtc = DateTime.MinValue;
     private bool _transparencyEnabled = true;
+    private string _lastTranslatedText = string.Empty;
+    private bool _resizeMode;
+    private bool _ctrlResizeEnabled;
+    private ResizeHandle? _activeResizeHandle;
+    private HwndSource? _hwndSource;
+    private DispatcherTimer? _ctrlPollTimer;
+    private bool _lastCtrlDown;
+
+    public event EventHandler<Rect>? CaptureRectChanged;
 
     public TextOverlayWindow(Rect rect)
     {
@@ -53,13 +65,20 @@ public partial class TextOverlayWindow : Window
 
         ConfigureLayout();
 
-        SourceInitialized += (_, __) => EnableClickThrough();
+        SourceInitialized += (_, __) =>
+        {
+            EnableClickThrough();
+            AttachWindowHook();
+            SyncCtrlResizeState();
+        };
 
         Loaded += async (_, __) => await StartRecognitionAsync();
         Closed += (_, __) =>
         {
             _translationCts?.Cancel();
             _manualCts?.Cancel();
+            DetachWindowHook();
+            StopCtrlPolling();
         };
 
         CacheDefaults();
@@ -91,6 +110,7 @@ public partial class TextOverlayWindow : Window
             System.Windows.Media.Color.FromArgb(255, 200, 255, 212)));
         ApplyTextFonts();
         UpdateTranslatedTextColors();
+        UpdateCtrlResizeFeature();
     }
 
     public void ApplyAppearanceFromSettings()
@@ -871,6 +891,7 @@ public partial class TextOverlayWindow : Window
         Editor.FontWeight = GetTranslatedFontWeight(isTranslated);
         AdjustHeightToContent(EditorPanel);
         HideTranslationStatus();
+        _lastTranslatedText = isTranslated ? text : string.Empty;
     }
 
     private void RenderExperimentalTranslation(string original, string header, string translated)
@@ -892,6 +913,7 @@ public partial class TextOverlayWindow : Window
         TranslatedTextBlock.FontWeight = GetTranslatedFontWeight(isTranslated: true);
         TranslationStatusTextBlock.Visibility = Visibility.Hidden;
         AdjustHeightToContent(TranslationPanel);
+        _lastTranslatedText = translated;
     }
 
     private void RenderExperimentalTranslationFromLayout(string name, string speech, string header, string translatedText)
@@ -915,6 +937,7 @@ public partial class TextOverlayWindow : Window
         TranslatedTextBlock.FontWeight = GetTranslatedFontWeight(isTranslated: true);
         TranslationStatusTextBlock.Visibility = Visibility.Hidden;
         AdjustHeightToContent(TranslationPanel);
+        _lastTranslatedText = translatedText;
     }
 
     private void RenderTranslatedWithName(string name, string translatedText)
@@ -942,6 +965,7 @@ public partial class TextOverlayWindow : Window
         TranslatedTextBlock.FontWeight = GetTranslatedFontWeight(isTranslated: true);
         TranslationStatusTextBlock.Visibility = Visibility.Hidden;
         AdjustHeightToContent(TranslationPanel);
+        _lastTranslatedText = translatedText;
     }
 
     private void ShowTranslationStatus(App app)
@@ -1214,6 +1238,7 @@ public partial class TextOverlayWindow : Window
         TranslationStatusTextBlock.Visibility = Visibility.Hidden;
 
         TranslatedTextBlock.Inlines.Clear();
+        _lastTranslatedText = ComposeStructuredText(blocks, bodies);
 
         for (int i = 0; i < blocks.Count; i++)
         {
@@ -1241,6 +1266,22 @@ public partial class TextOverlayWindow : Window
 
         AdjustHeightToContent(TranslationPanel);
         HideTranslationStatus();
+    }
+
+    public void CopyTranslatedTextToClipboard()
+    {
+        if (string.IsNullOrWhiteSpace(_lastTranslatedText))
+        {
+            return;
+        }
+
+        try
+        {
+            System.Windows.Clipboard.SetText(_lastTranslatedText);
+        }
+        catch
+        {
+        }
     }
 
     private void RenderLayout(OcrLayoutResult layout)
@@ -1288,15 +1329,7 @@ public partial class TextOverlayWindow : Window
 
     private void EnableClickThrough()
     {
-        var hwnd = new WindowInteropHelper(this).Handle;
-        if (hwnd == IntPtr.Zero)
-        {
-            return;
-        }
-
-        var exStyle = GetWindowLongPtr(hwnd, GwlExstyle);
-        var updatedStyle = new IntPtr(exStyle.ToInt64() | WsExTransparent | WsExToolwindow);
-        SetWindowLongPtr(hwnd, GwlExstyle, updatedStyle);
+        UpdateWindowStyles(clickThrough: true, noActivate: false);
     }
 
     public void SetHighlight(bool isHighlighted)
@@ -1316,15 +1349,293 @@ public partial class TextOverlayWindow : Window
         }
     }
 
+    private void UpdateCtrlResizeFeature()
+    {
+        var app = (App)System.Windows.Application.Current;
+        var enabled = app.Settings.Overlay.CtrlResizeEnabled;
+        if (_ctrlResizeEnabled == enabled)
+        {
+            return;
+        }
+
+        _ctrlResizeEnabled = enabled;
+
+        if (!enabled)
+        {
+            SetResizeMode(false);
+            StopCtrlPolling();
+            return;
+        }
+
+        StartCtrlPolling();
+    }
+
+    private void StartCtrlPolling()
+    {
+        if (_ctrlPollTimer != null)
+        {
+            return;
+        }
+
+        _lastCtrlDown = !IsCtrlDown();
+        _ctrlPollTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(50)
+        };
+        _ctrlPollTimer.Tick += (_, __) =>
+        {
+            if (!_ctrlResizeEnabled)
+            {
+                return;
+            }
+
+            var down = IsCtrlDown();
+            if (down == _lastCtrlDown)
+            {
+                return;
+            }
+
+            _lastCtrlDown = down;
+            SetResizeMode(down);
+        };
+        _ctrlPollTimer.Start();
+    }
+
+    private void SyncCtrlResizeState()
+    {
+        if (!_ctrlResizeEnabled)
+        {
+            return;
+        }
+
+        var down = IsCtrlDown();
+        _lastCtrlDown = down;
+        SetResizeMode(down);
+    }
+
+    private void StopCtrlPolling()
+    {
+        if (_ctrlPollTimer == null)
+        {
+            return;
+        }
+
+        _ctrlPollTimer.Stop();
+        _ctrlPollTimer = null;
+        _lastCtrlDown = false;
+    }
+
+    private static bool IsCtrlDown()
+    {
+        return (GetAsyncKeyState(VkControl) & 0x8000) != 0
+            || (GetAsyncKeyState(VkLcontrol) & 0x8000) != 0
+            || (GetAsyncKeyState(VkRcontrol) & 0x8000) != 0;
+    }
+
+    private void SetResizeMode(bool enabled)
+    {
+        if (_resizeMode == enabled)
+        {
+            return;
+        }
+
+        _resizeMode = enabled;
+        ResizeOverlay.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+        ResizeOverlay.IsHitTestVisible = enabled;
+        UpdateWindowStyles(clickThrough: !enabled, noActivate: enabled);
+    }
+
+    private void UpdateWindowStyles(bool clickThrough, bool noActivate)
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var exStyle = GetWindowLongPtr(hwnd, GwlExstyle);
+        var style = exStyle.ToInt64();
+
+        if (clickThrough)
+        {
+            style |= WsExTransparent;
+        }
+        else
+        {
+            style &= ~WsExTransparent;
+        }
+
+        if (noActivate)
+        {
+            style |= WsExNoActivate;
+        }
+        else
+        {
+            style &= ~WsExNoActivate;
+        }
+
+        style |= WsExToolwindow;
+        SetWindowLongPtr(hwnd, GwlExstyle, new IntPtr(style));
+    }
+
+    private void AttachWindowHook()
+    {
+        if (_hwndSource != null)
+        {
+            return;
+        }
+
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero)
+        {
+            return;
+        }
+
+        _hwndSource = HwndSource.FromHwnd(hwnd);
+        _hwndSource?.AddHook(WndProc);
+    }
+
+    private void DetachWindowHook()
+    {
+        if (_hwndSource == null)
+        {
+            return;
+        }
+
+        _hwndSource.RemoveHook(WndProc);
+        _hwndSource = null;
+    }
+
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WmMouseActivate && _resizeMode)
+        {
+            handled = true;
+            return new IntPtr(MaNoActivate);
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private void ResizeThumb_DragStarted(object sender, DragStartedEventArgs e)
+    {
+        if (!_resizeMode || sender is not Thumb thumb)
+        {
+            return;
+        }
+
+        _activeResizeHandle = ParseResizeHandle(thumb.Tag);
+    }
+
+    private void ResizeThumb_DragDelta(object sender, DragDeltaEventArgs e)
+    {
+        if (!_resizeMode || _activeResizeHandle == null)
+        {
+            return;
+        }
+
+        var rect = _captureRect;
+        var left = rect.Left;
+        var top = rect.Top;
+        var width = rect.Width;
+        var height = rect.Height;
+
+        var dx = e.HorizontalChange;
+        var dy = e.VerticalChange;
+
+        var handle = _activeResizeHandle.Value;
+        if (handle == ResizeHandle.Left || handle == ResizeHandle.TopLeft || handle == ResizeHandle.BottomLeft)
+        {
+            var newLeft = left + dx;
+            var newWidth = width - dx;
+            if (newWidth < MinCaptureSize)
+            {
+                newLeft = left + (width - MinCaptureSize);
+                newWidth = MinCaptureSize;
+            }
+
+            left = newLeft;
+            width = newWidth;
+        }
+        else if (handle == ResizeHandle.Right || handle == ResizeHandle.TopRight || handle == ResizeHandle.BottomRight)
+        {
+            var newWidth = width + dx;
+            width = Math.Max(MinCaptureSize, newWidth);
+        }
+
+        if (handle == ResizeHandle.Top || handle == ResizeHandle.TopLeft || handle == ResizeHandle.TopRight)
+        {
+            var newTop = top + dy;
+            var newHeight = height - dy;
+            if (newHeight < MinCaptureSize)
+            {
+                newTop = top + (height - MinCaptureSize);
+                newHeight = MinCaptureSize;
+            }
+
+            top = newTop;
+            height = newHeight;
+        }
+        else if (handle == ResizeHandle.Bottom || handle == ResizeHandle.BottomLeft || handle == ResizeHandle.BottomRight)
+        {
+            var newHeight = height + dy;
+            height = Math.Max(MinCaptureSize, newHeight);
+        }
+
+        ApplyCaptureRectFromResize(new Rect(left, top, width, height));
+    }
+
+    private void ResizeThumb_DragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        _activeResizeHandle = null;
+    }
+
+    private void ApplyCaptureRectFromResize(Rect rect)
+    {
+        _captureRect = rect;
+        CaptureRectChanged?.Invoke(this, rect);
+    }
+
+    private static ResizeHandle? ParseResizeHandle(object? tag)
+    {
+        if (tag is string text && Enum.TryParse(text, out ResizeHandle handle))
+        {
+            return handle;
+        }
+
+        return null;
+    }
+
     private const int GwlExstyle = -20;
     private const int WsExTransparent = 0x00000020;
     private const int WsExToolwindow = 0x00000080;
+    private const int WsExNoActivate = 0x08000000;
+    private const int WmMouseActivate = 0x0021;
+    private const int MaNoActivate = 3;
+    private const int VkControl = 0x11;
+    private const int VkLcontrol = 0xA2;
+    private const int VkRcontrol = 0xA3;
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern short GetAsyncKeyState(int vKey);
+
+    private enum ResizeHandle
+    {
+        Left,
+        Right,
+        Top,
+        Bottom,
+        TopLeft,
+        TopRight,
+        BottomLeft,
+        BottomRight
+    }
 
     private double ComputeCardHeight(double width)
     {

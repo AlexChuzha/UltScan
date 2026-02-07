@@ -11,6 +11,7 @@ public partial class PinButtonWindow : Window
         System.Windows.Media.Color.FromArgb(0x99, 0x44, 0x44, 0x44);
     private readonly Action _onClose;
     private readonly Action _onManualTranslate;
+    private readonly Action _onCopyTranslation;
     private readonly Action<double, double> _onDragDelta;
     private readonly Action<bool> _onTransparencyChanged;
     private readonly Action<bool> _onHoverChanged;
@@ -21,6 +22,7 @@ public partial class PinButtonWindow : Window
         Rect anchorRect,
         Action onClose,
         Action onManualTranslate,
+        Action onCopyTranslation,
         Action<double, double> onDragDelta,
         Action<bool> onTransparencyChanged,
         Action<bool> onHoverChanged,
@@ -30,6 +32,7 @@ public partial class PinButtonWindow : Window
 
         _onClose = onClose;
         _onManualTranslate = onManualTranslate;
+        _onCopyTranslation = onCopyTranslation;
         _onDragDelta = onDragDelta;
         _onTransparencyChanged = onTransparencyChanged;
         _onHoverChanged = onHoverChanged;
@@ -39,6 +42,7 @@ public partial class PinButtonWindow : Window
         var app = (App)System.Windows.Application.Current;
         CloseButton.ToolTip = app.Localization["Overlay.CloseTooltip"];
         ManualTranslateButton.ToolTip = app.Localization["Overlay.ManualTranslateTooltip"];
+        CopyTranslationButton.ToolTip = app.Localization["Overlay.CopyTooltip"];
         DragThumb.ToolTip = app.Localization["Overlay.DragTooltip"];
         TransparencyCheckBox.Content = app.Localization["Overlay.TransparencyLabel"];
         TransparencyCheckBox.IsChecked = true;
@@ -185,6 +189,11 @@ public partial class PinButtonWindow : Window
     private void ManualTranslateButton_Click(object sender, RoutedEventArgs e)
     {
         _onManualTranslate();
+    }
+
+    private void CopyTranslationButton_Click(object sender, RoutedEventArgs e)
+    {
+        _onCopyTranslation();
     }
 
     private void DragThumb_DragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)

@@ -7,7 +7,7 @@
         Topmost="True"
         AllowsTransparency="True"
         Background="Transparent"
-        Width="210"
+        Width="250"
         Height="34"
         MouseEnter="Panel_MouseEnter"
         MouseLeave="Panel_MouseLeave">
@@ -82,6 +82,50 @@
                         <Setter Property="Foreground" Value="#F2F2F2"/>
                         <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
                         <Setter Property="Content" Value="&#xE72C;"/>
+                        <Setter Property="Cursor" Value="Hand"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Root"
+                                            Background="#22444444"
+                                            BorderBrush="#55FFFFFF"
+                                            BorderThickness="1"
+                                            CornerRadius="6">
+                                        <ContentPresenter HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Foreground" Value="White"/>
+                                            <Setter TargetName="Root" Property="Border.Background" Value="#555C5C5C"/>
+                                            <Setter TargetName="Root" Property="Border.BorderBrush" Value="#AAFFFFFF"/>
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="Root" Property="Border.Background" Value="#883C3C3C"/>
+                                            <Setter TargetName="Root" Property="Border.BorderBrush" Value="#CCFFFFFF"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Button.Style>
+            </Button>
+
+            <Button x:Name="CopyTranslationButton"
+                    Width="24"
+                    Height="24"
+                    Margin="0,0,8,0"
+                    FontSize="14"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    ToolTipService.Placement="Top"
+                    Click="CopyTranslationButton_Click">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Foreground" Value="#F2F2F2"/>
+                        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+                        <Setter Property="Content" Value="&#xE8C8;"/>
                         <Setter Property="Cursor" Value="Hand"/>
                         <Setter Property="Template">
                             <Setter.Value>

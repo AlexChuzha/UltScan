@@ -275,6 +275,16 @@
                                                Margin="8,0,0,0"
                                                VerticalAlignment="Center"/>
                                 </StackPanel>
+                                <CheckBox x:Name="OverlayCtrlResizeCheckBox"
+                                          Margin="0,12,0,0"
+                                          Content="Ctrl resize overlay"
+                                          Checked="OverlayCtrlResize_Changed"
+                                          Unchecked="OverlayCtrlResize_Changed"/>
+                                <TextBlock x:Name="OverlayCtrlResizeWarning"
+                                           Margin="0,4,0,0"
+                                           TextWrapping="Wrap"
+                                           Foreground="#B00020"
+                                           Visibility="Collapsed"/>
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>

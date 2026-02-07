@@ -64,6 +64,8 @@
     "Settings.OverlayHeader": "Overlay",
     "Settings.OverlayOrientation": "Output orientation",
     "Settings.OverlayOpacity": "Overlay opacity",
+    "Settings.OverlayCtrlResize": "Resize overlay while holding Ctrl",
+    "Settings.OverlayCtrlResizeWarning": "Warning: Ctrl may be used by other apps or games, which can cause conflicts.",
     "Settings.OverlayRight": "Output on the right",
     "Settings.OverlayBottom": "Output below",
     "Settings.OverlayLeft": "Output on the left",
@@ -104,6 +106,7 @@
     ,
     "Overlay.CloseTooltip": "Close overlay",
     "Overlay.ManualTranslateTooltip": "Refresh OCR and translation",
+    "Overlay.CopyTooltip": "Copy translated text",
     "Overlay.DragTooltip": "Drag to move overlay",
     "Overlay.TransparencyLabel": "Transparent"
     ,

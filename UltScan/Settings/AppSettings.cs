@@ -67,6 +67,7 @@ public sealed class OverlaySettings
 {
     public OverlayOrientation Orientation { get; set; } = OverlayOrientation.Right;
     public double Opacity { get; set; } = 0.6;
+    public bool CtrlResizeEnabled { get; set; } = true;
 }
 
 public enum OverlayOrientation

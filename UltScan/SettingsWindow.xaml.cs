@@ -354,6 +354,20 @@ public partial class SettingsWindow : Window
         MarkDirty();
     }
 
+    private void OverlayCtrlResize_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressOverlayChange || OverlayCtrlResizeCheckBox.IsChecked == null)
+        {
+            return;
+        }
+
+        _pendingSettings.Overlay.CtrlResizeEnabled = OverlayCtrlResizeCheckBox.IsChecked.Value;
+        OverlayCtrlResizeWarning.Visibility = _pendingSettings.Overlay.CtrlResizeEnabled
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        MarkDirty();
+    }
+
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
         Close();
@@ -439,6 +453,8 @@ public partial class SettingsWindow : Window
         OverlayHeaderText.Text = _loc["Settings.OverlayHeader"];
         OverlayOrientationLabel.Text = _loc["Settings.OverlayOrientation"];
         OverlayOpacityLabel.Text = _loc["Settings.OverlayOpacity"];
+        OverlayCtrlResizeCheckBox.Content = _loc["Settings.OverlayCtrlResize"];
+        OverlayCtrlResizeWarning.Text = _loc["Settings.OverlayCtrlResizeWarning"];
 
         RebuildHotKeyItems();
         RebuildTranslationLanguageLists();
@@ -507,6 +523,10 @@ public partial class SettingsWindow : Window
         _suppressOverlayChange = true;
         OverlayOpacitySlider.Value = Math.Clamp(_pendingSettings.Overlay.Opacity, 0.1, 1.0);
         OverlayOpacityValue.Text = $"{(int)Math.Round(OverlayOpacitySlider.Value * 100)}%";
+        OverlayCtrlResizeCheckBox.IsChecked = _pendingSettings.Overlay.CtrlResizeEnabled;
+        OverlayCtrlResizeWarning.Visibility = _pendingSettings.Overlay.CtrlResizeEnabled
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         _suppressOverlayChange = false;
         _suppressDirty = false;
     }
@@ -848,7 +868,8 @@ public partial class SettingsWindow : Window
         target.Overlay = new OverlaySettings
         {
             Orientation = source.Overlay.Orientation,
-            Opacity = source.Overlay.Opacity
+            Opacity = source.Overlay.Opacity,
+            CtrlResizeEnabled = source.Overlay.CtrlResizeEnabled
         };
         target.Translation = new TranslationSettings
         {

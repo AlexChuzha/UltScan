@@ -273,6 +273,7 @@ namespace UltScan
             UpdateTrayMenuText();
             _overlayWindow = new TextOverlayWindow(rect);
             _overlayWindow.Closed += (_, __) => _overlayWindow = null;
+            _overlayWindow.CaptureRectChanged += (_, updated) => UpdateOverlayRect(updated);
             _overlayWindow.Show();
 
             var outputRect = _overlayWindow != null
@@ -282,6 +283,7 @@ namespace UltScan
                 rect,
                 CloseOverlayWindow,
                 () => _ = ForceOverlayTranslationAsync(),
+                () => _overlayWindow?.CopyTranslatedTextToClipboard(),
                 (dx, dy) => MoveOverlayBy(dx, dy),
                 enabled => _overlayWindow?.SetTransparencyEnabled(enabled),
                 SetOverlayHighlight,
