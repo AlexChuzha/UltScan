@@ -302,6 +302,18 @@
                                            TextWrapping="Wrap"
                                            Foreground="#B00020"
                                            Visibility="Collapsed"/>
+                                <TextBlock x:Name="OverlayCtrlResizeHelpLink"
+                                           Margin="0,4,0,0"
+                                           Foreground="#1A73E8"
+                                           TextDecorations="Underline"
+                                           Cursor="Hand"
+                                           Visibility="Collapsed"
+                                           MouseLeftButtonUp="OverlayCtrlResizeHelp_Click"/>
+                                <TextBlock x:Name="OverlayCtrlResizeHelpText"
+                                           Margin="0,4,0,0"
+                                           TextWrapping="Wrap"
+                                           Foreground="#555"
+                                           Visibility="Collapsed"/>
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>

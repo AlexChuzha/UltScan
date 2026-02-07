@@ -66,6 +66,8 @@
     "Settings.OverlayOpacity": "Overlay opacity",
     "Settings.OverlayCtrlResize": "Resize overlay while holding Ctrl",
     "Settings.OverlayCtrlResizeWarning": "Warning: Ctrl may be used by other apps or games, which can cause conflicts.",
+    "Settings.OverlayCtrlResizeHelpLink": "What should I do in this case?",
+    "Settings.OverlayCtrlResizeHelpText": "Try running UltScan as administrator so it can receive Ctrl input from apps running with elevated privileges.",
     "Settings.OverlayRight": "Output on the right",
     "Settings.OverlayBottom": "Output below",
     "Settings.OverlayLeft": "Output on the left",

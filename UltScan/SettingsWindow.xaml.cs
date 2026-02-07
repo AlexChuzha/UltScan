@@ -395,10 +395,25 @@ public partial class SettingsWindow : Window
         }
 
         _pendingSettings.Overlay.CtrlResizeEnabled = OverlayCtrlResizeCheckBox.IsChecked.Value;
-        OverlayCtrlResizeWarning.Visibility = _pendingSettings.Overlay.CtrlResizeEnabled
+        var showWarning = _pendingSettings.Overlay.CtrlResizeEnabled;
+        OverlayCtrlResizeWarning.Visibility = showWarning
             ? Visibility.Visible
             : Visibility.Collapsed;
+        OverlayCtrlResizeHelpLink.Visibility = showWarning
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        if (!showWarning)
+        {
+            OverlayCtrlResizeHelpText.Visibility = Visibility.Collapsed;
+        }
         MarkDirty();
+    }
+
+    private void OverlayCtrlResizeHelp_Click(object sender, RoutedEventArgs e)
+    {
+        OverlayCtrlResizeHelpText.Visibility = OverlayCtrlResizeHelpText.Visibility == Visibility.Visible
+            ? Visibility.Collapsed
+            : Visibility.Visible;
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
@@ -489,6 +504,8 @@ public partial class SettingsWindow : Window
         OverlayOpacityLabel.Text = _loc["Settings.OverlayOpacity"];
         OverlayCtrlResizeCheckBox.Content = _loc["Settings.OverlayCtrlResize"];
         OverlayCtrlResizeWarning.Text = _loc["Settings.OverlayCtrlResizeWarning"];
+        OverlayCtrlResizeHelpLink.Text = _loc["Settings.OverlayCtrlResizeHelpLink"];
+        OverlayCtrlResizeHelpText.Text = _loc["Settings.OverlayCtrlResizeHelpText"];
         ResetHeaderText.Text = _loc["Settings.ResetHeader"];
         ResetHintText.Text = _loc["Settings.ResetHint"];
 
@@ -560,9 +577,17 @@ public partial class SettingsWindow : Window
         OverlayOpacitySlider.Value = Math.Clamp(_pendingSettings.Overlay.Opacity, 0.1, 1.0);
         OverlayOpacityValue.Text = $"{(int)Math.Round(OverlayOpacitySlider.Value * 100)}%";
         OverlayCtrlResizeCheckBox.IsChecked = _pendingSettings.Overlay.CtrlResizeEnabled;
-        OverlayCtrlResizeWarning.Visibility = _pendingSettings.Overlay.CtrlResizeEnabled
+        var showWarning = _pendingSettings.Overlay.CtrlResizeEnabled;
+        OverlayCtrlResizeWarning.Visibility = showWarning
             ? Visibility.Visible
             : Visibility.Collapsed;
+        OverlayCtrlResizeHelpLink.Visibility = showWarning
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        if (!showWarning)
+        {
+            OverlayCtrlResizeHelpText.Visibility = Visibility.Collapsed;
+        }
         _suppressOverlayChange = false;
         _suppressDirty = false;
     }
