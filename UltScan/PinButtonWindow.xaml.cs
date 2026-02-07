@@ -29,6 +29,8 @@ public partial class PinButtonWindow : Window
         Rect? avoidRect)
     {
         InitializeComponent();
+        ShowActivated = false;
+        Focusable = false;
 
         _onClose = onClose;
         _onManualTranslate = onManualTranslate;

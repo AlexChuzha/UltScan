@@ -62,7 +62,9 @@
                                FontWeight="Normal"
                                Foreground="#F2F2F2"
                                TextWrapping="Wrap"/>
-                    <Separator Margin="0,6,0,6" Opacity="0.35"/>
+                    <Separator x:Name="TranslationSeparator"
+                               Margin="0,6,0,6"
+                               Opacity="0.35"/>
                     <TextBlock x:Name="TranslationHeaderTextBlock"
                                FontSize="12"
                                FontWeight="Normal"

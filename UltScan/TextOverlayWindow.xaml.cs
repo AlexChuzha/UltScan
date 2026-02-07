@@ -894,7 +894,22 @@ public partial class TextOverlayWindow : Window
         _lastTranslatedText = isTranslated ? text : string.Empty;
     }
 
-    private void RenderExperimentalTranslation(string original, string header, string translated)
+    private void RenderTranslatedTextOnly(string translatedText)
+    {
+        RenderTranslationPanel(
+            originalText: string.Empty,
+            headerText: string.Empty,
+            showOriginal: false,
+            showHeader: false,
+            translatedText: translatedText);
+    }
+
+    private void RenderTranslationPanel(
+        string originalText,
+        string headerText,
+        bool showOriginal,
+        bool showHeader,
+        string translatedText)
     {
         LayoutCanvas.Visibility = Visibility.Collapsed;
         LayoutCanvas.Children.Clear();
@@ -904,16 +919,26 @@ public partial class TextOverlayWindow : Window
         EditorPanel.Visibility = Visibility.Collapsed;
 
         TranslationPanel.Visibility = Visibility.Visible;
-        OriginalTextBlock.Visibility = Visibility.Visible;
-        TranslationHeaderTextBlock.Visibility = Visibility.Visible;
-        OriginalTextBlock.Text = original;
-        TranslationHeaderTextBlock.Text = header;
-        TranslatedTextBlock.Text = translated;
+        OriginalTextBlock.Visibility = showOriginal ? Visibility.Visible : Visibility.Collapsed;
+        TranslationHeaderTextBlock.Visibility = showHeader ? Visibility.Visible : Visibility.Collapsed;
+        OriginalTextBlock.Text = originalText;
+        TranslationHeaderTextBlock.Text = headerText;
+        TranslatedTextBlock.Text = translatedText;
         TranslatedTextBlock.Foreground = _translatedTextBrush;
         TranslatedTextBlock.FontWeight = GetTranslatedFontWeight(isTranslated: true);
-        TranslationStatusTextBlock.Visibility = Visibility.Hidden;
+        HideTranslationStatus();
         AdjustHeightToContent(TranslationPanel);
-        _lastTranslatedText = translated;
+        _lastTranslatedText = translatedText;
+    }
+
+    private void RenderExperimentalTranslation(string original, string header, string translated)
+    {
+        RenderTranslationPanel(
+            originalText: original,
+            headerText: header,
+            showOriginal: true,
+            showHeader: true,
+            translatedText: translated);
     }
 
     private void RenderExperimentalTranslationFromLayout(string name, string speech, string header, string translatedText)
@@ -944,28 +969,16 @@ public partial class TextOverlayWindow : Window
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            RenderPlainText(translatedText, isTranslated: true);
+            RenderTranslatedTextOnly(translatedText);
             return;
         }
 
-        LayoutCanvas.Visibility = Visibility.Collapsed;
-        LayoutCanvas.Children.Clear();
-
-        Editor.Visibility = Visibility.Collapsed;
-        Editor.Text = string.Empty;
-        EditorPanel.Visibility = Visibility.Collapsed;
-
-        TranslationPanel.Visibility = Visibility.Visible;
-        OriginalTextBlock.Visibility = Visibility.Visible;
-        TranslationHeaderTextBlock.Visibility = Visibility.Visible;
-        OriginalTextBlock.Text = name;
-        TranslationHeaderTextBlock.Text = string.Empty;
-        TranslatedTextBlock.Text = translatedText;
-        TranslatedTextBlock.Foreground = _translatedTextBrush;
-        TranslatedTextBlock.FontWeight = GetTranslatedFontWeight(isTranslated: true);
-        TranslationStatusTextBlock.Visibility = Visibility.Hidden;
-        AdjustHeightToContent(TranslationPanel);
-        _lastTranslatedText = translatedText;
+        RenderTranslationPanel(
+            originalText: name,
+            headerText: string.Empty,
+            showOriginal: true,
+            showHeader: false,
+            translatedText: translatedText);
     }
 
     private void ShowTranslationStatus(App app)
@@ -1178,7 +1191,14 @@ public partial class TextOverlayWindow : Window
     {
         if (blocks == null || translatedBodies == null)
         {
-            RenderPlainText(translated ?? originalText, isTranslated: translated != null);
+            if (translated != null)
+            {
+                RenderTranslatedTextOnly(translated);
+            }
+            else
+            {
+                RenderPlainText(originalText);
+            }
             return;
         }
 
@@ -1329,7 +1349,7 @@ public partial class TextOverlayWindow : Window
 
     private void EnableClickThrough()
     {
-        UpdateWindowStyles(clickThrough: true, noActivate: false);
+        UpdateWindowStyles(clickThrough: true, noActivate: true);
     }
 
     public void SetHighlight(bool isHighlighted)
