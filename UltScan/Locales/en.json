@@ -75,6 +75,7 @@
     "Settings.ExperimentalWarning": "Experimental mode may contain unexpected behavior. Disable it for a more stable experience.",
     "Settings.CheckUpdates": "Check for updates",
     "Settings.CheckingUpdates": "Checking...",
+    "Settings.Version": "Version {0}",
     "Settings.Reset": "Reset to defaults",
     "Settings.ResetHeader": "Reset settings",
     "Settings.ResetHint": "Restore default settings for the app.",

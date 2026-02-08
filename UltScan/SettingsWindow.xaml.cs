@@ -31,6 +31,7 @@ public partial class SettingsWindow : Window
     private readonly OverlayOption[] _overlayOptions;
     private readonly ModeOption[] _modeOptions;
     private readonly ThemeOption[] _themeOptions;
+    private readonly string _appVersionText;
 
     public SettingsWindow()
     {
@@ -38,6 +39,7 @@ public partial class SettingsWindow : Window
         _loc = _app.Localization;
         _originalSettings = CloneSettings(_app.Settings);
         _pendingSettings = CloneSettings(_app.Settings);
+        _appVersionText = BuildVersionText();
         _suppressOverlayChange = true;
         _suppressAppearanceChange = true;
 
@@ -478,6 +480,7 @@ public partial class SettingsWindow : Window
         ExperimentalWarningText.Text = _loc["Settings.ExperimentalWarning"];
         OpenWelcomeButton.Content = _loc["Settings.OpenWelcome"];
         CheckUpdatesButton.Content = _loc["Settings.CheckUpdates"];
+        VersionText.Text = string.Format(_loc["Settings.Version"], _appVersionText);
         SaveButton.Content = _loc["Settings.Save"];
         ApplyButton.Content = _loc["Settings.Apply"];
         ResetButton.Content = _loc["Settings.Reset"];
@@ -590,6 +593,12 @@ public partial class SettingsWindow : Window
         }
         _suppressOverlayChange = false;
         _suppressDirty = false;
+    }
+
+    private static string BuildVersionText()
+    {
+        var version = typeof(App).Assembly.GetName().Version;
+        return version == null ? "-" : $"{version.Major}.{version.Minor}.{version.Build}.{version.Revision}";
     }
 
     private void UpdateExperimentalWarning()
