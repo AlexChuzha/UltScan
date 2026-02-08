@@ -53,7 +53,7 @@ jobs:
         run: vpk download github --repoUrl https://github.com/AlexChuzha/UltScan --token $env:VELOPACK_GITHUB_TOKEN
 
       - name: Pack
-        run: vpk pack --packId AlexChuzha.UltScan --packVersion ${{ steps.version.outputs.pack_version }} --packDir .\artifacts\publish --mainExe UltScan.exe
+        run: vpk pack --packId AlexChuzha.UltScan --packTitle UltScan --packVersion ${{ steps.version.outputs.pack_version }} --packDir .\artifacts\publish --mainExe UltScan.exe
 
       - name: Upload to GitHub Release
         run: vpk upload github --repoUrl https://github.com/AlexChuzha/UltScan --token $env:VELOPACK_GITHUB_TOKEN --publish --releaseName "UltScan ${{ steps.version.outputs.version }}" --tag ${{ github.event.release.tag_name || format('v{0}', steps.version.outputs.version) }}

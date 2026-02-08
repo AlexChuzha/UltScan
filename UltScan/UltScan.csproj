@@ -1,7 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>0.1.22.9</Version>
+    <Version>0.1.23.10</Version>
+    <AssemblyTitle>UltScan</AssemblyTitle>
+    <Product>UltScan</Product>
+    <Company>Alex Chuzha</Company>
+    <Authors>Alex Chuzha</Authors>
+    <Description>Screen text recognition and translation overlay.</Description>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <RepositoryUrl>https://github.com/AlexChuzha/UltScan</RepositoryUrl>
 
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows10.0.22621.0</TargetFramework>
