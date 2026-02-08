@@ -879,6 +879,7 @@ public partial class TextOverlayWindow : Window
         LayoutCanvas.Children.Clear();
         TranslationPanel.Visibility = Visibility.Collapsed;
 
+        Editor.Visibility = Visibility.Visible;
         EditorPanel.Visibility = Visibility.Visible;
         SetEditorDocumentSingleBlock(
             text,
@@ -901,6 +902,7 @@ public partial class TextOverlayWindow : Window
         LayoutCanvas.Visibility = Visibility.Collapsed;
         LayoutCanvas.Children.Clear();
         TranslationPanel.Visibility = Visibility.Collapsed;
+        Editor.Visibility = Visibility.Visible;
         EditorPanel.Visibility = Visibility.Visible;
 
         var normalizedLayout = NormalizeForCompare(layout.Text);
