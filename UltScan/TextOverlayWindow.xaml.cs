@@ -47,6 +47,7 @@ public partial class TextOverlayWindow : Window
     private string _lastTranslatedText = string.Empty;
     private bool _resizeMode;
     private bool _ctrlResizeEnabled;
+    private bool _deferredLayoutPassScheduled;
     private ResizeHandle? _activeResizeHandle;
     private HwndSource? _hwndSource;
     private DispatcherTimer? _ctrlPollTimer;
@@ -152,15 +153,8 @@ public partial class TextOverlayWindow : Window
                 {
                     return;
                 }
-
-                if (layout.Lines.Count > 0)
-                {
-                    RenderLayout(layout);
-                }
-                else
-                {
-                    RenderPlainText(layout.Text);
-                }
+                RenderRecognizedLayout(layout);
+                TranslationLogger.LogPair(layout.Text, string.Empty);
             }
             else
             {
@@ -171,6 +165,7 @@ public partial class TextOverlayWindow : Window
                 }
 
                 RenderPlainText(text);
+                TranslationLogger.LogPair(text, string.Empty);
             }
         }
         finally
@@ -395,6 +390,10 @@ public partial class TextOverlayWindow : Window
         System.Windows.Controls.Canvas.SetTop(Card, _translationRect.Y);
         Card.Width = _translationRect.Width;
         Card.Height = _translationRect.Height;
+        if (Editor?.Document != null)
+        {
+            Editor.Document.PageWidth = GetEditorPageWidth();
+        }
 
         UpdateOverlayGeometry();
         if (System.Windows.Application.Current is App appInstance)
@@ -516,29 +515,8 @@ public partial class TextOverlayWindow : Window
         Opacity = 0;
         try
         {
-            var app = (App)System.Windows.Application.Current;
-            if (app.Settings.Translation.Enabled)
-            {
-                await RenderInitialTextAsync(app);
-                StartTranslationLoop(app);
-            }
-            else if (app.Settings.ExperimentalMode)
-            {
-                var layout = await ScreenTextRecognizer.RecognizeLayoutAsync(_captureRect, this);
-                if (layout.Lines.Count > 0)
-                {
-                    RenderLayout(layout);
-                }
-                else
-                {
-                    RenderPlainText(layout.Text);
-                }
-            }
-            else
-            {
-                var text = await ScreenTextRecognizer.RecognizeTextAsync(_captureRect, this);
-                RenderPlainText(text);
-            }
+            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
+            await ForceRefreshAsync();
         }
         finally
         {
@@ -885,13 +863,163 @@ public partial class TextOverlayWindow : Window
         TranslationPanel.Visibility = Visibility.Collapsed;
 
         EditorPanel.Visibility = Visibility.Visible;
-        Editor.Text = text;
-        Editor.CaretIndex = Editor.Text.Length;
-        Editor.Foreground = isTranslated ? _translatedTextBrush : _defaultTextBrush;
-        Editor.FontWeight = GetTranslatedFontWeight(isTranslated);
+        SetEditorDocumentSingleBlock(
+            text,
+            isTranslated ? _translatedTextBrush : _defaultTextBrush,
+            GetTranslatedFontWeight(isTranslated));
         AdjustHeightToContent(EditorPanel);
         HideTranslationStatus();
         _lastTranslatedText = isTranslated ? text : string.Empty;
+    }
+
+    private void RenderRecognizedLayout(OcrLayoutResult layout)
+    {
+        if (layout.Lines.Count == 0)
+        {
+            RenderPlainText(layout.Text);
+            return;
+        }
+
+        LayoutCanvas.Visibility = Visibility.Collapsed;
+        LayoutCanvas.Children.Clear();
+        TranslationPanel.Visibility = Visibility.Collapsed;
+        EditorPanel.Visibility = Visibility.Visible;
+
+        var lines = layout.Lines
+            .Where(l => !string.IsNullOrWhiteSpace(l.Text))
+            .OrderBy(l => l.Bounds.Y)
+            .ThenBy(l => l.Bounds.X)
+            .ToList();
+
+        if (lines.Count == 0)
+        {
+            RenderPlainText(layout.Text);
+            return;
+        }
+
+        if (lines.Count <= 1)
+        {
+            RenderPlainText(layout.Text);
+            return;
+        }
+
+        // Some OCR passes return a full layout.Text but a partial Lines collection.
+        // In that case, prefer full plain rendering over truncated formatted output.
+        var normalizedLayout = NormalizeForCompare(layout.Text);
+        var linesText = string.Join(" ", lines.Select(l => l.Text.Trim()));
+        var normalizedLines = NormalizeForCompare(linesText);
+        if (!string.IsNullOrWhiteSpace(normalizedLayout))
+        {
+            var coverage = normalizedLines.Length / (double)normalizedLayout.Length;
+            if (coverage < 0.75)
+            {
+                RenderPlainText(layout.Text);
+                return;
+            }
+        }
+
+        var doc = new System.Windows.Documents.FlowDocument
+        {
+            PagePadding = new Thickness(0),
+            TextAlignment = TextAlignment.Left,
+            ColumnWidth = double.PositiveInfinity,
+            PageWidth = GetEditorPageWidth()
+        };
+
+        var widthBase = Math.Max(1.0, _captureRect.Width);
+        var leftBase = _captureRect.X;
+        var cardWidth = Card.ActualWidth > 1 ? Card.ActualWidth : _captureRect.Width;
+        var contentWidth = Math.Max(1.0, cardWidth - Card.Padding.Left - Card.Padding.Right);
+        var scale = contentWidth / widthBase;
+
+        OcrLineLayout? prev = null;
+        foreach (var line in lines)
+        {
+            var indent = Math.Max(0, (line.Bounds.X - leftBase) * scale);
+            var topGap = 0.0;
+            if (prev != null)
+            {
+                var rawGap = line.Bounds.Y - (prev.Bounds.Y + prev.Bounds.Height);
+                if (rawGap > 0)
+                {
+                    topGap = Math.Min(18, rawGap * scale);
+                }
+            }
+
+            var paragraph = new System.Windows.Documents.Paragraph
+            {
+                Margin = new Thickness(indent, topGap, 0, 0)
+            };
+            paragraph.Inlines.Add(new System.Windows.Documents.Run(line.Text)
+            {
+                Foreground = _defaultTextBrush,
+                FontWeight = FontWeights.Normal
+            });
+            doc.Blocks.Add(paragraph);
+            prev = line;
+        }
+
+        Editor.Document = doc;
+        AdjustHeightToContent(EditorPanel);
+        ScheduleDeferredLayoutPass();
+        HideTranslationStatus();
+        _lastTranslatedText = string.Empty;
+    }
+
+    private void SetEditorDocumentSingleBlock(string text, System.Windows.Media.Brush brush, FontWeight fontWeight)
+    {
+        var doc = new System.Windows.Documents.FlowDocument
+        {
+            PagePadding = new Thickness(0),
+            TextAlignment = TextAlignment.Left,
+            ColumnWidth = double.PositiveInfinity,
+            PageWidth = GetEditorPageWidth()
+        };
+
+        var paragraph = new System.Windows.Documents.Paragraph
+        {
+            Margin = new Thickness(0)
+        };
+        paragraph.Inlines.Add(new System.Windows.Documents.Run(text ?? string.Empty)
+        {
+            Foreground = brush,
+            FontWeight = fontWeight
+        });
+        doc.Blocks.Add(paragraph);
+        Editor.Document = doc;
+        ScheduleDeferredLayoutPass();
+    }
+
+    private void ClearEditorDocument()
+    {
+        Editor.Document = new System.Windows.Documents.FlowDocument
+        {
+            PagePadding = new Thickness(0),
+            TextAlignment = TextAlignment.Left,
+            ColumnWidth = double.PositiveInfinity,
+            PageWidth = GetEditorPageWidth()
+        };
+    }
+
+    private double GetEditorPageWidth()
+    {
+        var cardWidth = Card.ActualWidth > 1 ? Card.ActualWidth : _captureRect.Width;
+        return Math.Max(1.0, cardWidth - Card.Padding.Left - Card.Padding.Right);
+    }
+
+    private void ScheduleDeferredLayoutPass()
+    {
+        if (_deferredLayoutPassScheduled)
+        {
+            return;
+        }
+
+        _deferredLayoutPassScheduled = true;
+        _ = Dispatcher.InvokeAsync(() =>
+        {
+            _deferredLayoutPassScheduled = false;
+            UpdateWindowLayout();
+        }, DispatcherPriority.Loaded);
     }
 
     private void RenderTranslatedTextOnly(string translatedText)
@@ -915,7 +1043,7 @@ public partial class TextOverlayWindow : Window
         LayoutCanvas.Children.Clear();
 
         Editor.Visibility = Visibility.Collapsed;
-        Editor.Text = string.Empty;
+        ClearEditorDocument();
         EditorPanel.Visibility = Visibility.Collapsed;
 
         TranslationPanel.Visibility = Visibility.Visible;
@@ -947,7 +1075,7 @@ public partial class TextOverlayWindow : Window
         LayoutCanvas.Children.Clear();
 
         Editor.Visibility = Visibility.Collapsed;
-        Editor.Text = string.Empty;
+        ClearEditorDocument();
         EditorPanel.Visibility = Visibility.Collapsed;
 
         TranslationPanel.Visibility = Visibility.Visible;
@@ -1250,7 +1378,7 @@ public partial class TextOverlayWindow : Window
         LayoutCanvas.Children.Clear();
         EditorPanel.Visibility = Visibility.Collapsed;
         Editor.Visibility = Visibility.Collapsed;
-        Editor.Text = string.Empty;
+        ClearEditorDocument();
 
         TranslationPanel.Visibility = Visibility.Visible;
         OriginalTextBlock.Visibility = Visibility.Collapsed;
@@ -1302,44 +1430,6 @@ public partial class TextOverlayWindow : Window
         catch
         {
         }
-    }
-
-    private void RenderLayout(OcrLayoutResult layout)
-    {
-        Editor.Visibility = Visibility.Collapsed;
-        Editor.Text = string.Empty;
-        TranslationPanel.Visibility = Visibility.Collapsed;
-        EditorPanel.Visibility = Visibility.Collapsed;
-
-        LayoutCanvas.Visibility = Visibility.Visible;
-        LayoutCanvas.Children.Clear();
-
-        foreach (var line in layout.Lines)
-        {
-            if (string.IsNullOrWhiteSpace(line.Text))
-            {
-                continue;
-            }
-
-            var textBlock = new System.Windows.Controls.TextBlock
-            {
-                Text = line.Text,
-                FontSize = Editor.FontSize,
-                FontWeight = Editor.FontWeight,
-                FontFamily = Editor.FontFamily,
-                Foreground = Editor.Foreground,
-                TextWrapping = TextWrapping.NoWrap
-            };
-
-            var localX = (line.Bounds.X - _captureRect.X) + _holeRect.X;
-            var localY = (line.Bounds.Y - _captureRect.Y) + _holeRect.Y;
-
-            System.Windows.Controls.Canvas.SetLeft(textBlock, localX);
-            System.Windows.Controls.Canvas.SetTop(textBlock, localY);
-            LayoutCanvas.Children.Add(textBlock);
-        }
-
-        AdjustHeightToContent(Editor);
     }
 
     private void AdjustHeightToContent(FrameworkElement element)
@@ -1679,11 +1769,5 @@ public partial class TextOverlayWindow : Window
         OverlayPath.Data = combined;
     }
 }
-
-
-
-
-
-
 
 

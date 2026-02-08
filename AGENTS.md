@@ -18,3 +18,9 @@ Commit Summary Rule
 Commit Message Language Rule
 Summary и Description коммита должны формироваться на русском языке.
 
+Commit Description Rule
+Description обязателен в каждом коммите.
+Description должен содержать минимум 2–4 пункта:
+- что изменено;
+- зачем изменено;
+- возможные риски или ограничения.
