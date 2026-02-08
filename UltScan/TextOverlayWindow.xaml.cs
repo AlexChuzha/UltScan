@@ -154,7 +154,8 @@ public partial class TextOverlayWindow : Window
                     return;
                 }
                 RenderRecognizedLayout(layout);
-                TranslationLogger.LogPair(layout.Text, string.Empty);
+                var segmented = OcrTextSegmenter.ComposeText(OcrTextSegmenter.BuildSegments(layout.Lines));
+                TranslationLogger.LogPair(string.IsNullOrWhiteSpace(segmented) ? layout.Text : segmented, string.Empty);
             }
             else
             {
@@ -190,7 +191,12 @@ public partial class TextOverlayWindow : Window
             return;
         }
 
-        var text = layout.Text;
+        var segments = OcrTextSegmenter.BuildSegments(layout.Lines);
+        var text = OcrTextSegmenter.ComposeText(segments);
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            text = layout.Text;
+        }
         var normalized = NormalizeForCompare(text);
         if (string.IsNullOrWhiteSpace(normalized))
         {
@@ -527,7 +533,11 @@ public partial class TextOverlayWindow : Window
     private async Task RenderInitialTextAsync(App app)
     {
         var layout = await ScreenTextRecognizer.RecognizeLayoutAsync(_captureRect, this);
-        var text = layout.Text;
+        var text = OcrTextSegmenter.ComposeText(OcrTextSegmenter.BuildSegments(layout.Lines));
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            text = layout.Text;
+        }
         RenderPlainText(text);
         _lastCandidate = NormalizeForCompare(text);
         _lastStable = string.Empty;
@@ -568,7 +578,14 @@ public partial class TextOverlayWindow : Window
 
     private async Task HandleCandidateAsync(App app, string text, IReadOnlyList<OcrLineLayout> lines, int qualityScore = 0)
     {
-        var normalized = NormalizeForCompare(text);
+        var segments = OcrTextSegmenter.BuildSegments(lines);
+        var candidateText = OcrTextSegmenter.ComposeText(segments);
+        if (string.IsNullOrWhiteSpace(candidateText))
+        {
+            candidateText = text;
+        }
+
+        var normalized = NormalizeForCompare(candidateText);
         if (string.IsNullOrWhiteSpace(normalized))
         {
             LogDebug("skip: empty normalized");
@@ -580,7 +597,7 @@ public partial class TextOverlayWindow : Window
         {
             _lastCandidate = normalized;
             _lastChangeUtc = DateTime.UtcNow;
-            _bestCandidateText = text;
+            _bestCandidateText = candidateText;
             _bestCandidateScore = qualityScore;
             _bestCandidateLines = lines.ToList();
             ShowTranslationStatus(app);
@@ -592,13 +609,13 @@ public partial class TextOverlayWindow : Window
             var ratio = GetChangeRatio(normalized, _lastCandidate);
             if (ratio < app.Settings.Translation.MinChangeRatio)
             {
-                if (IsBetterCandidate(text, qualityScore))
+                if (IsBetterCandidate(candidateText, qualityScore))
                 {
                     _bestCandidateScore = qualityScore;
-                    _bestCandidateText = text;
+                    _bestCandidateText = candidateText;
                     _bestCandidateLines = lines.ToList();
                 }
-                LogDebug($"noise: ratio={ratio:F3} score={qualityScore} best={_bestCandidateScore} len={text.Length}");
+                LogDebug($"noise: ratio={ratio:F3} score={qualityScore} best={_bestCandidateScore} len={candidateText.Length}");
             }
             else
             {
@@ -606,7 +623,7 @@ public partial class TextOverlayWindow : Window
                 {
                     _lastCandidate = normalized;
                     _lastChangeUtc = DateTime.UtcNow;
-                    _bestCandidateText = text;
+                    _bestCandidateText = candidateText;
                     _bestCandidateScore = qualityScore;
                     _bestCandidateLines = lines.ToList();
                     ShowTranslationStatus(app);
@@ -626,7 +643,7 @@ public partial class TextOverlayWindow : Window
 
                 _lastCandidate = normalized;
                 _lastChangeUtc = DateTime.UtcNow;
-                _bestCandidateText = text;
+                _bestCandidateText = candidateText;
                 _bestCandidateScore = qualityScore;
                 _bestCandidateLines = lines.ToList();
                 ShowTranslationStatus(app);
@@ -636,12 +653,12 @@ public partial class TextOverlayWindow : Window
         }
 
     ContinueStability:
-        if (IsBetterCandidate(text, qualityScore))
+        if (IsBetterCandidate(candidateText, qualityScore))
         {
             _bestCandidateScore = qualityScore;
-            _bestCandidateText = text;
+            _bestCandidateText = candidateText;
             _bestCandidateLines = lines.ToList();
-            LogDebug($"improve best: score={qualityScore} len={text.Length}");
+            LogDebug($"improve best: score={qualityScore} len={candidateText.Length}");
         }
 
         var stableFor = DateTime.UtcNow - _lastChangeUtc;
@@ -669,7 +686,7 @@ public partial class TextOverlayWindow : Window
 
         _lastStable = normalized;
         _lastLayoutLines = _bestCandidateLines.ToList();
-        var stableText = string.IsNullOrWhiteSpace(_bestCandidateText) ? text : _bestCandidateText;
+        var stableText = string.IsNullOrWhiteSpace(_bestCandidateText) ? candidateText : _bestCandidateText;
 
         var blocks = app.Settings.Translation.Mode == TranslationMode.VisualNovel
             ? TrySplitCaptionsAndBodies(_lastLayoutLines)
@@ -874,7 +891,8 @@ public partial class TextOverlayWindow : Window
 
     private void RenderRecognizedLayout(OcrLayoutResult layout)
     {
-        if (layout.Lines.Count == 0)
+        var segments = OcrTextSegmenter.BuildSegments(layout.Lines);
+        if (segments.Count == 0)
         {
             RenderPlainText(layout.Text);
             return;
@@ -885,32 +903,12 @@ public partial class TextOverlayWindow : Window
         TranslationPanel.Visibility = Visibility.Collapsed;
         EditorPanel.Visibility = Visibility.Visible;
 
-        var lines = layout.Lines
-            .Where(l => !string.IsNullOrWhiteSpace(l.Text))
-            .OrderBy(l => l.Bounds.Y)
-            .ThenBy(l => l.Bounds.X)
-            .ToList();
-
-        if (lines.Count == 0)
-        {
-            RenderPlainText(layout.Text);
-            return;
-        }
-
-        if (lines.Count <= 1)
-        {
-            RenderPlainText(layout.Text);
-            return;
-        }
-
-        // Some OCR passes return a full layout.Text but a partial Lines collection.
-        // In that case, prefer full plain rendering over truncated formatted output.
         var normalizedLayout = NormalizeForCompare(layout.Text);
-        var linesText = string.Join(" ", lines.Select(l => l.Text.Trim()));
-        var normalizedLines = NormalizeForCompare(linesText);
+        var segmentsText = OcrTextSegmenter.ComposeText(segments);
+        var normalizedSegments = NormalizeForCompare(segmentsText);
         if (!string.IsNullOrWhiteSpace(normalizedLayout))
         {
-            var coverage = normalizedLines.Length / (double)normalizedLayout.Length;
+            var coverage = normalizedSegments.Length / (double)normalizedLayout.Length;
             if (coverage < 0.75)
             {
                 RenderPlainText(layout.Text);
@@ -926,37 +924,19 @@ public partial class TextOverlayWindow : Window
             PageWidth = GetEditorPageWidth()
         };
 
-        var widthBase = Math.Max(1.0, _captureRect.Width);
-        var leftBase = _captureRect.X;
-        var cardWidth = Card.ActualWidth > 1 ? Card.ActualWidth : _captureRect.Width;
-        var contentWidth = Math.Max(1.0, cardWidth - Card.Padding.Left - Card.Padding.Right);
-        var scale = contentWidth / widthBase;
-
-        OcrLineLayout? prev = null;
-        foreach (var line in lines)
+        for (int i = 0; i < segments.Count; i++)
         {
-            var indent = Math.Max(0, (line.Bounds.X - leftBase) * scale);
-            var topGap = 0.0;
-            if (prev != null)
-            {
-                var rawGap = line.Bounds.Y - (prev.Bounds.Y + prev.Bounds.Height);
-                if (rawGap > 0)
-                {
-                    topGap = Math.Min(18, rawGap * scale);
-                }
-            }
-
+            var segment = segments[i];
             var paragraph = new System.Windows.Documents.Paragraph
             {
-                Margin = new Thickness(indent, topGap, 0, 0)
+                Margin = new Thickness(0, i > 0 ? 8 : 0, 0, 0)
             };
-            paragraph.Inlines.Add(new System.Windows.Documents.Run(line.Text)
+            paragraph.Inlines.Add(new System.Windows.Documents.Run(segment.Text)
             {
-                Foreground = _defaultTextBrush,
-                FontWeight = FontWeights.Normal
+                Foreground = segment.Kind == OcrSegmentKind.Header ? _captionTextBrush : _defaultTextBrush,
+                FontWeight = segment.Kind == OcrSegmentKind.Header ? FontWeights.SemiBold : FontWeights.Normal
             });
             doc.Blocks.Add(paragraph);
-            prev = line;
         }
 
         Editor.Document = doc;
