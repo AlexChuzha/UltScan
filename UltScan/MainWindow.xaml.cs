@@ -56,7 +56,8 @@ public partial class MainWindow : Window
 
     private void Window_KeyDown(object sender, WpfKeyEventArgs e)
     {
-        if (e.Key == Key.Escape)
+        var pressedKey = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (pressedKey == Key.Escape)
         {
             CancelCapture();
             e.Handled = true;
