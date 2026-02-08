@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Drawing;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
@@ -14,6 +15,8 @@ namespace UltScan
 {
     public partial class App : System.Windows.Application
     {
+        private const string SingleInstanceMutexName = @"Local\AlexChuzha.UltScan.SingleInstance";
+        private static readonly Mutex SingleInstanceMutex = new(initiallyOwned: false, name: SingleInstanceMutexName);
         private Forms.NotifyIcon? _notifyIcon;
         private Forms.ToolStripMenuItem? _captureItem;
         private Forms.ToolStripMenuItem? _repeatItem;
@@ -34,10 +37,33 @@ namespace UltScan
         [STAThread]
         public static void Main(string[] args)
         {
-            VelopackApp.Build().Run();
-            var app = new App();
-            app.InitializeComponent();
-            app.Run();
+            var hasOwnership = false;
+            try
+            {
+                hasOwnership = SingleInstanceMutex.WaitOne(0, false);
+            }
+            catch (AbandonedMutexException)
+            {
+                hasOwnership = true;
+            }
+
+            if (!hasOwnership)
+            {
+                return;
+            }
+
+            try
+            {
+                VelopackApp.Build().Run();
+                var app = new App();
+                app.InitializeComponent();
+                app.Run();
+            }
+            finally
+            {
+                SingleInstanceMutex.ReleaseMutex();
+                SingleInstanceMutex.Dispose();
+            }
         }
 
         protected override void OnStartup(StartupEventArgs e)

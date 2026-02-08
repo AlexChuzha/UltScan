@@ -1,9 +1,11 @@
-﻿using System;
+using System;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using MediaColor = System.Windows.Media.Color;
 using MediaColorConverter = System.Windows.Media.ColorConverter;
 using MediaBrush = System.Windows.Media.Brush;
@@ -44,6 +46,7 @@ public partial class SettingsWindow : Window
         _suppressAppearanceChange = true;
 
         InitializeComponent();
+        TrySetWindowIcon();
         ApplyButton.IsEnabled = false;
         _providerOptions = new[]
         {
@@ -79,6 +82,17 @@ public partial class SettingsWindow : Window
 
         PreviewKeyDown += SettingsWindow_PreviewKeyDown;
         Closing += SettingsWindow_Closing;
+    }
+
+    private void TrySetWindowIcon()
+    {
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico");
+        if (!File.Exists(iconPath))
+        {
+            return;
+        }
+
+        Icon = new BitmapImage(new Uri(iconPath, UriKind.Absolute));
     }
 
     private void HotKeyCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
