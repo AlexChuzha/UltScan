@@ -89,6 +89,9 @@ public sealed class TranslationSettings
     public bool TranslatedBold { get; set; }
     public string TranslatedTextColor { get; set; } = "#4CD964";
     public string CaptionTextColor { get; set; } = "#C8FFD4";
+    public bool AlternateColorSchemeEnabled { get; set; }
+    public string AlternateTranslatedTextColor { get; set; } = "#64B5F6";
+    public string AlternateCaptionTextColor { get; set; } = "#CFE8FF";
     public string OverlayFontFamily { get; set; } = string.Empty;
     public double OverlayFontSize { get; set; } = 16;
     public TranslationMode Mode { get; set; } = TranslationMode.Standard;

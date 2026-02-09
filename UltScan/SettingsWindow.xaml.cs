@@ -154,6 +154,21 @@ public partial class SettingsWindow : Window
             defaults.LocaleId = _app.Localization.GetBestLocaleId(osLocale);
         }
 
+        if (string.IsNullOrWhiteSpace(defaults.Translation.TargetLanguage))
+        {
+            defaults.Translation.TargetLanguage = TranslationLanguages.GetBestTargetLanguage(CultureInfo.CurrentUICulture);
+        }
+
+        if (string.IsNullOrWhiteSpace(defaults.Translation.SourceLanguage))
+        {
+            defaults.Translation.SourceLanguage = "auto";
+        }
+
+        if (string.IsNullOrWhiteSpace(defaults.Translation.Provider))
+        {
+            defaults.Translation.Provider = TranslationService.ProviderWeb;
+        }
+
         if (!_app.TryApplyHotKey(defaults.HotKey, showError: true))
         {
             return;
@@ -253,6 +268,35 @@ public partial class SettingsWindow : Window
 
         _pendingSettings.Translation.CaptionTextColor = option.CaptionHex;
         _pendingSettings.Translation.TranslatedTextColor = option.TextHex;
+        MarkDirty();
+    }
+
+    private void TranslationAlternateTheme_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressAppearanceChange || TranslationAlternateThemeCheckBox.IsChecked == null)
+        {
+            return;
+        }
+
+        _pendingSettings.Translation.AlternateColorSchemeEnabled = TranslationAlternateThemeCheckBox.IsChecked.Value;
+        UpdateAlternateThemeControlsState();
+        MarkDirty();
+    }
+
+    private void TranslationAlternateColor_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressAppearanceChange)
+        {
+            return;
+        }
+
+        if (TranslationAlternateColorCombo.SelectedItem is not ThemeOption option)
+        {
+            return;
+        }
+
+        _pendingSettings.Translation.AlternateCaptionTextColor = option.CaptionHex;
+        _pendingSettings.Translation.AlternateTranslatedTextColor = option.TextHex;
         MarkDirty();
     }
     private void TranslationFont_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -573,7 +617,9 @@ public partial class SettingsWindow : Window
         CancelButton.Content = _loc["Settings.Cancel"];
         TranslationEnabledCheckBox.Content = _loc["Settings.TranslationEnabled"];
         TranslationBoldCheckBox.Content = _loc["Settings.TranslationBold"];
-        TranslationColorLabel.Text = _loc["Settings.TranslationTextColor"];
+        TranslationColorGroupHeader.Text = _loc["Settings.TranslationTextColor"];
+        TranslationAlternateThemeCheckBox.Content = _loc["Settings.TranslationAlternateThemeEnabled"];
+        TranslationAlternateColorLabel.Text = _loc["Settings.TranslationAlternateTheme"];
         TranslationFontLabel.Text = _loc["Settings.TranslationFont"];
         TranslationFontSizeLabel.Text = _loc["Settings.TranslationFontSize"];
         TranslationModeLabel.Text = _loc["Settings.TranslationMode"];
@@ -660,6 +706,30 @@ public partial class SettingsWindow : Window
 
         TranslationColorCombo.ItemsSource = themeItems;
         TranslationColorCombo.SelectedItem = selectedTheme ?? themeItems.FirstOrDefault();
+
+        TranslationAlternateThemeCheckBox.IsChecked = _pendingSettings.Translation.AlternateColorSchemeEnabled;
+        var alternateCaption = _pendingSettings.Translation.AlternateCaptionTextColor;
+        var alternateText = _pendingSettings.Translation.AlternateTranslatedTextColor;
+        var selectedAlternateTheme = themeItems.FirstOrDefault(o =>
+            string.Equals(o.CaptionHex, alternateCaption, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(o.TextHex, alternateText, StringComparison.OrdinalIgnoreCase));
+        if (selectedAlternateTheme == null)
+        {
+            var customAlternate = new ThemeOption(alternateCaption, alternateText, "Settings.TranslationThemeCustom")
+            {
+                DisplayName = _loc["Settings.TranslationThemeCustom"],
+                CaptionBrush = ToBrush(alternateCaption),
+                TextBrush = ToBrush(alternateText),
+                SampleCaption = sampleCaption,
+                SampleBody = sampleBody
+            };
+            themeItems.Insert(0, customAlternate);
+            selectedAlternateTheme = customAlternate;
+        }
+
+        TranslationAlternateColorCombo.ItemsSource = themeItems;
+        TranslationAlternateColorCombo.SelectedItem = selectedAlternateTheme ?? themeItems.FirstOrDefault();
+        UpdateAlternateThemeControlsState();
         RebuildFontOptions();
         RebuildFontSizeOptions();
         _suppressAppearanceChange = false;
@@ -1008,6 +1078,13 @@ public partial class SettingsWindow : Window
         TranslationApiKeyTextBox.IsEnabled = isApi;
     }
 
+    private void UpdateAlternateThemeControlsState()
+    {
+        var enabled = _pendingSettings.Translation.AlternateColorSchemeEnabled;
+        TranslationAlternateColorLabel.IsEnabled = enabled;
+        TranslationAlternateColorCombo.IsEnabled = enabled;
+    }
+
     private void MarkDirty()
     {
         if (_suppressDirty)
@@ -1021,6 +1098,8 @@ public partial class SettingsWindow : Window
 
     private void ApplyPendingSettings()
     {
+        EnsureTranslationDefaults(_pendingSettings);
+
         if (!StartupManager.SetEnabled(_pendingSettings.AutoStart))
         {
             _suppressAutoStartChange = true;
@@ -1035,6 +1114,24 @@ public partial class SettingsWindow : Window
         _app.UpdateTrayMenuText();
         _app.ApplyOverlayAppearance();
         _ = _app.ForceOverlayTranslationAsync();
+    }
+
+    private static void EnsureTranslationDefaults(AppSettings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.Translation.TargetLanguage))
+        {
+            settings.Translation.TargetLanguage = TranslationLanguages.GetBestTargetLanguage(CultureInfo.CurrentUICulture);
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.Translation.SourceLanguage))
+        {
+            settings.Translation.SourceLanguage = "auto";
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.Translation.Provider))
+        {
+            settings.Translation.Provider = TranslationService.ProviderWeb;
+        }
     }
 
     private static AppSettings CloneSettings(AppSettings source)
@@ -1074,6 +1171,9 @@ public partial class SettingsWindow : Window
             TranslatedBold = source.Translation.TranslatedBold,
             TranslatedTextColor = source.Translation.TranslatedTextColor,
             CaptionTextColor = source.Translation.CaptionTextColor,
+            AlternateColorSchemeEnabled = source.Translation.AlternateColorSchemeEnabled,
+            AlternateTranslatedTextColor = source.Translation.AlternateTranslatedTextColor,
+            AlternateCaptionTextColor = source.Translation.AlternateCaptionTextColor,
             OverlayFontFamily = source.Translation.OverlayFontFamily,
             OverlayFontSize = source.Translation.OverlayFontSize,
             Mode = source.Translation.Mode,

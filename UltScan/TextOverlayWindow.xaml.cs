@@ -32,6 +32,7 @@ public partial class TextOverlayWindow : Window
     private System.Windows.Media.FontFamily _defaultOriginalFontFamily = System.Windows.SystemFonts.MessageFontFamily;
     private System.Windows.Media.Brush _translatedTextBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 76, 217, 100));
     private System.Windows.Media.Brush _captionTextBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 200, 255, 212));
+    private bool _alternateTranslationThemeState;
     private System.Threading.CancellationTokenSource? _translationCts;
     private System.Threading.CancellationTokenSource? _manualCts;
     private int _operationId;
@@ -114,15 +115,42 @@ public partial class TextOverlayWindow : Window
         var app = (App)System.Windows.Application.Current;
         var opacity = _transparencyEnabled ? app.Settings.Overlay.Opacity : 1.0;
         ApplyOverlayOpacity(opacity);
-        _translatedTextBrush = new SolidColorBrush(ParseColorOrDefault(
-            app.Settings.Translation.TranslatedTextColor,
-            System.Windows.Media.Color.FromArgb(255, 76, 217, 100)));
-        _captionTextBrush = new SolidColorBrush(ParseColorOrDefault(
-            app.Settings.Translation.CaptionTextColor,
-            System.Windows.Media.Color.FromArgb(255, 200, 255, 212)));
+        ApplyTranslationThemeBrushes(app, useAlternate: false);
+        _alternateTranslationThemeState = false;
         ApplyTextFonts();
         UpdateTranslatedTextColors();
         UpdateCtrlResizeFeature();
+    }
+
+    private void PrepareTranslationThemeForText(App app, string translatedText)
+    {
+        if (!app.Settings.Translation.AlternateColorSchemeEnabled)
+        {
+            _alternateTranslationThemeState = false;
+            ApplyTranslationThemeBrushes(app, useAlternate: false);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_lastTranslatedText) &&
+            !string.Equals(_lastTranslatedText, translatedText, StringComparison.Ordinal))
+        {
+            _alternateTranslationThemeState = !_alternateTranslationThemeState;
+        }
+
+        ApplyTranslationThemeBrushes(app, _alternateTranslationThemeState);
+    }
+
+    private void ApplyTranslationThemeBrushes(App app, bool useAlternate)
+    {
+        var translatedColor = ParseColorOrDefault(
+            useAlternate ? app.Settings.Translation.AlternateTranslatedTextColor : app.Settings.Translation.TranslatedTextColor,
+            System.Windows.Media.Color.FromArgb(255, 76, 217, 100));
+        var captionColor = ParseColorOrDefault(
+            useAlternate ? app.Settings.Translation.AlternateCaptionTextColor : app.Settings.Translation.CaptionTextColor,
+            System.Windows.Media.Color.FromArgb(255, 200, 255, 212));
+
+        _translatedTextBrush = new SolidColorBrush(translatedColor);
+        _captionTextBrush = new SolidColorBrush(captionColor);
     }
 
     public void ApplyAppearanceFromSettings()
@@ -745,6 +773,7 @@ public partial class TextOverlayWindow : Window
 
         await Dispatcher.InvokeAsync(() =>
         {
+            PrepareTranslationThemeForText(app, translatedText);
             if (app.Settings.ExperimentalMode)
             {
                 var stamp = DateTime.Now.ToString("HH:mm:ss");

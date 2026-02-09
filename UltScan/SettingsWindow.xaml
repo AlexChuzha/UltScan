@@ -155,41 +155,94 @@
                                         HorizontalAlignment="Left"
                                         Click="MoreLanguages_Click"/>
 
-                                <TextBlock x:Name="TranslationColorLabel"
-                                           Margin="0,12,0,4"
-                                           FontWeight="SemiBold"/>
-                                <ComboBox x:Name="TranslationColorCombo"
-                                          MinWidth="240"
-                                          SelectionChanged="TranslationColor_SelectionChanged">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding DisplayName}"
-                                                           FontWeight="SemiBold"/>
-                                                <StackPanel Orientation="Horizontal"
-                                                            Margin="0,2,0,0">
-                                                    <Border Width="12"
-                                                            Height="12"
-                                                            Margin="0,2,6,0"
-                                                            BorderBrush="#666"
-                                                            BorderThickness="1"
-                                                            Background="{Binding CaptionBrush}"/>
-                                                    <TextBlock Text="{Binding SampleCaption}"/>
-                                                </StackPanel>
-                                                <StackPanel Orientation="Horizontal"
-                                                            Margin="0,2,0,0">
-                                                    <Border Width="12"
-                                                            Height="12"
-                                                            Margin="0,2,6,0"
-                                                            BorderBrush="#666"
-                                                            BorderThickness="1"
-                                                            Background="{Binding TextBrush}"/>
-                                                    <TextBlock Text="{Binding SampleBody}"/>
-                                                </StackPanel>
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
+                                <Border Margin="0,12,0,0"
+                                        Padding="10"
+                                        BorderBrush="#1F6FA8DC"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Background="#0D6FA8DC">
+                                    <StackPanel>
+                                        <TextBlock x:Name="TranslationColorGroupHeader"
+                                                   FontWeight="SemiBold"/>
+
+                                        <ComboBox x:Name="TranslationColorCombo"
+                                                  MinWidth="240"
+                                                  Margin="0,8,0,0"
+                                                  SelectionChanged="TranslationColor_SelectionChanged">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding DisplayName}"
+                                                                   FontWeight="SemiBold"/>
+                                                        <StackPanel Orientation="Horizontal"
+                                                                    Margin="0,2,0,0">
+                                                            <Border Width="12"
+                                                                    Height="12"
+                                                                    Margin="0,2,6,0"
+                                                                    BorderBrush="#666"
+                                                                    BorderThickness="1"
+                                                                    Background="{Binding CaptionBrush}"/>
+                                                            <TextBlock Text="{Binding SampleCaption}"/>
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal"
+                                                                    Margin="0,2,0,0">
+                                                            <Border Width="12"
+                                                                    Height="12"
+                                                                    Margin="0,2,6,0"
+                                                                    BorderBrush="#666"
+                                                                    BorderThickness="1"
+                                                                    Background="{Binding TextBrush}"/>
+                                                            <TextBlock Text="{Binding SampleBody}"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+
+                                        <CheckBox x:Name="TranslationAlternateThemeCheckBox"
+                                                  Margin="0,8,0,0"
+                                                  Checked="TranslationAlternateTheme_Changed"
+                                                  Unchecked="TranslationAlternateTheme_Changed"/>
+
+                                        <TextBlock x:Name="TranslationAlternateColorLabel"
+                                                   Margin="0,8,0,4"
+                                                   FontWeight="SemiBold"/>
+
+                                        <ComboBox x:Name="TranslationAlternateColorCombo"
+                                                  MinWidth="240"
+                                                  SelectionChanged="TranslationAlternateColor_SelectionChanged">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding DisplayName}"
+                                                                   FontWeight="SemiBold"/>
+                                                        <StackPanel Orientation="Horizontal"
+                                                                    Margin="0,2,0,0">
+                                                            <Border Width="12"
+                                                                    Height="12"
+                                                                    Margin="0,2,6,0"
+                                                                    BorderBrush="#666"
+                                                                    BorderThickness="1"
+                                                                    Background="{Binding CaptionBrush}"/>
+                                                            <TextBlock Text="{Binding SampleCaption}"/>
+                                                        </StackPanel>
+                                                        <StackPanel Orientation="Horizontal"
+                                                                    Margin="0,2,0,0">
+                                                            <Border Width="12"
+                                                                    Height="12"
+                                                                    Margin="0,2,6,0"
+                                                                    BorderBrush="#666"
+                                                                    BorderThickness="1"
+                                                                    Background="{Binding TextBrush}"/>
+                                                            <TextBlock Text="{Binding SampleBody}"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Border>
+
                                 <TextBlock x:Name="TranslationFontLabel"
                                            Margin="0,12,0,4"
                                            FontWeight="SemiBold"/>
