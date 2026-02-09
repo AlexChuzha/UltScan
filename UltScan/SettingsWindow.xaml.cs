@@ -425,6 +425,78 @@ public partial class SettingsWindow : Window
         MarkDirty();
     }
 
+    private void ExperimentalOverlayAutoHide_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressOverlayChange || ExperimentalOverlayAutoHideCheckBox.IsChecked == null)
+        {
+            return;
+        }
+
+        _pendingSettings.Overlay.AutoHideWhenNoText = ExperimentalOverlayAutoHideCheckBox.IsChecked.Value;
+        UpdateExperimentalOverlayAutoHideControlsState();
+        MarkDirty();
+    }
+
+    private void ExperimentalOverlayDormantFrame_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressOverlayChange || ExperimentalOverlayDormantFrameCheckBox.IsChecked == null)
+        {
+            return;
+        }
+
+        _pendingSettings.Overlay.AutoHideNoTextShowDormantFrame = ExperimentalOverlayDormantFrameCheckBox.IsChecked.Value;
+        MarkDirty();
+    }
+
+    private void ExperimentalOverlayHideDelay_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_suppressOverlayChange)
+        {
+            return;
+        }
+
+        var value = (int)Math.Round(Math.Clamp(e.NewValue, 200, 1500));
+        _pendingSettings.Overlay.AutoHideNoTextHideDelayMs = value;
+        ExperimentalOverlayHideDelayValue.Text = $"{value} ms";
+        MarkDirty();
+    }
+
+    private void ExperimentalOverlayShowDelay_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_suppressOverlayChange)
+        {
+            return;
+        }
+
+        var value = (int)Math.Round(Math.Clamp(e.NewValue, 0, 800));
+        _pendingSettings.Overlay.AutoHideNoTextShowDelayMs = value;
+        ExperimentalOverlayShowDelayValue.Text = $"{value} ms";
+        MarkDirty();
+    }
+
+    private void ExperimentalOverlayEmptyFrames_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_suppressOverlayChange)
+        {
+            return;
+        }
+
+        var value = (int)Math.Round(Math.Clamp(e.NewValue, 1, 5));
+        _pendingSettings.Overlay.AutoHideNoTextEmptyFrames = value;
+        ExperimentalOverlayEmptyFramesValue.Text = value.ToString(CultureInfo.InvariantCulture);
+        MarkDirty();
+    }
+
+    private void ExperimentalOverlayTestHide_Click(object sender, RoutedEventArgs e)
+    {
+        _app.SimulateOverlayAutoHideTextState(hasText: false);
+    }
+
+    private void ExperimentalOverlayTestShow_Click(object sender, RoutedEventArgs e)
+    {
+        _app.SimulateOverlayAutoHideTextState(hasText: true);
+    }
+
     private void OverlayCtrlResizeHelp_Click(object sender, RoutedEventArgs e)
     {
         OverlayCtrlResizeHelpText.Visibility = OverlayCtrlResizeHelpText.Visibility == Visibility.Visible
@@ -523,6 +595,15 @@ public partial class SettingsWindow : Window
         OverlayCtrlResizeWarning.Text = _loc["Settings.OverlayCtrlResizeWarning"];
         OverlayCtrlResizeHelpLink.Text = _loc["Settings.OverlayCtrlResizeHelpLink"];
         OverlayCtrlResizeHelpText.Text = _loc["Settings.OverlayCtrlResizeHelpText"];
+        ExperimentalOverlayGroupHeader.Text = _loc["Settings.ExperimentalOverlayGroupHeader"];
+        ExperimentalOverlayAutoHideCheckBox.Content = _loc["Settings.ExperimentalOverlayAutoHideNoText"];
+        ExperimentalOverlayOnlyTranslationHint.Text = _loc["Settings.ExperimentalOverlayAutoHideOnlyTranslation"];
+        ExperimentalOverlayDormantFrameCheckBox.Content = _loc["Settings.ExperimentalOverlayDormantFrame"];
+        ExperimentalOverlayHideDelayLabel.Text = _loc["Settings.ExperimentalOverlayHideDelay"];
+        ExperimentalOverlayShowDelayLabel.Text = _loc["Settings.ExperimentalOverlayShowDelay"];
+        ExperimentalOverlayEmptyFramesLabel.Text = _loc["Settings.ExperimentalOverlayEmptyFrames"];
+        ExperimentalOverlayTestHideButton.Content = _loc["Settings.ExperimentalOverlayTestHide"];
+        ExperimentalOverlayTestShowButton.Content = _loc["Settings.ExperimentalOverlayTestShow"];
         ResetHeaderText.Text = _loc["Settings.ResetHeader"];
         ResetHintText.Text = _loc["Settings.ResetHint"];
 
@@ -594,6 +675,15 @@ public partial class SettingsWindow : Window
         OverlayOpacitySlider.Value = Math.Clamp(_pendingSettings.Overlay.Opacity, 0.1, 1.0);
         OverlayOpacityValue.Text = $"{(int)Math.Round(OverlayOpacitySlider.Value * 100)}%";
         OverlayCtrlResizeCheckBox.IsChecked = _pendingSettings.Overlay.CtrlResizeEnabled;
+        ExperimentalOverlayAutoHideCheckBox.IsChecked = _pendingSettings.Overlay.AutoHideWhenNoText;
+        ExperimentalOverlayDormantFrameCheckBox.IsChecked = _pendingSettings.Overlay.AutoHideNoTextShowDormantFrame;
+        ExperimentalOverlayHideDelaySlider.Value = Math.Clamp(_pendingSettings.Overlay.AutoHideNoTextHideDelayMs, 200, 1500);
+        ExperimentalOverlayHideDelayValue.Text = $"{(int)Math.Round(ExperimentalOverlayHideDelaySlider.Value)} ms";
+        ExperimentalOverlayShowDelaySlider.Value = Math.Clamp(_pendingSettings.Overlay.AutoHideNoTextShowDelayMs, 0, 800);
+        ExperimentalOverlayShowDelayValue.Text = $"{(int)Math.Round(ExperimentalOverlayShowDelaySlider.Value)} ms";
+        ExperimentalOverlayEmptyFramesSlider.Value = Math.Clamp(_pendingSettings.Overlay.AutoHideNoTextEmptyFrames, 1, 5);
+        ExperimentalOverlayEmptyFramesValue.Text = ((int)Math.Round(ExperimentalOverlayEmptyFramesSlider.Value)).ToString(CultureInfo.InvariantCulture);
+        UpdateExperimentalOverlayAutoHideControlsState();
         var showWarning = _pendingSettings.Overlay.CtrlResizeEnabled;
         OverlayCtrlResizeWarning.Visibility = showWarning
             ? Visibility.Visible
@@ -859,6 +949,24 @@ public partial class SettingsWindow : Window
         return TryParseColor(hex, out var color) ? new SolidColorBrush(color) : MediaBrushes.Transparent;
     }
 
+    private void UpdateExperimentalOverlayAutoHideControlsState()
+    {
+        var enabled = ExperimentalOverlayAutoHideCheckBox.IsChecked == true;
+        ExperimentalOverlayOnlyTranslationHint.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+        ExperimentalOverlayDormantFrameCheckBox.IsEnabled = enabled;
+        ExperimentalOverlayHideDelayLabel.IsEnabled = enabled;
+        ExperimentalOverlayHideDelaySlider.IsEnabled = enabled;
+        ExperimentalOverlayHideDelayValue.IsEnabled = enabled;
+        ExperimentalOverlayShowDelayLabel.IsEnabled = enabled;
+        ExperimentalOverlayShowDelaySlider.IsEnabled = enabled;
+        ExperimentalOverlayShowDelayValue.IsEnabled = enabled;
+        ExperimentalOverlayEmptyFramesLabel.IsEnabled = enabled;
+        ExperimentalOverlayEmptyFramesSlider.IsEnabled = enabled;
+        ExperimentalOverlayEmptyFramesValue.IsEnabled = enabled;
+        ExperimentalOverlayTestHideButton.IsEnabled = enabled;
+        ExperimentalOverlayTestShowButton.IsEnabled = enabled;
+    }
+
     private void OpenWelcome_Click(object sender, RoutedEventArgs e)
     {
         var app = (App)System.Windows.Application.Current;
@@ -953,7 +1061,12 @@ public partial class SettingsWindow : Window
         {
             Orientation = source.Overlay.Orientation,
             Opacity = source.Overlay.Opacity,
-            CtrlResizeEnabled = source.Overlay.CtrlResizeEnabled
+            CtrlResizeEnabled = source.Overlay.CtrlResizeEnabled,
+            AutoHideWhenNoText = source.Overlay.AutoHideWhenNoText,
+            AutoHideNoTextHideDelayMs = source.Overlay.AutoHideNoTextHideDelayMs,
+            AutoHideNoTextShowDelayMs = source.Overlay.AutoHideNoTextShowDelayMs,
+            AutoHideNoTextEmptyFrames = source.Overlay.AutoHideNoTextEmptyFrames,
+            AutoHideNoTextShowDormantFrame = source.Overlay.AutoHideNoTextShowDormantFrame
         };
         target.Translation = new TranslationSettings
         {

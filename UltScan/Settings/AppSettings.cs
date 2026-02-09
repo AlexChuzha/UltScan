@@ -68,6 +68,11 @@ public sealed class OverlaySettings
     public OverlayOrientation Orientation { get; set; } = OverlayOrientation.Right;
     public double Opacity { get; set; } = 0.6;
     public bool CtrlResizeEnabled { get; set; } = true;
+    public bool AutoHideWhenNoText { get; set; }
+    public int AutoHideNoTextHideDelayMs { get; set; } = 450;
+    public int AutoHideNoTextShowDelayMs { get; set; } = 120;
+    public int AutoHideNoTextEmptyFrames { get; set; } = 2;
+    public bool AutoHideNoTextShowDormantFrame { get; set; } = true;
 }
 
 public enum OverlayOrientation

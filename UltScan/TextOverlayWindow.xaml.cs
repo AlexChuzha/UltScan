@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using System.Drawing;
 using Forms = System.Windows.Forms;
@@ -18,6 +19,7 @@ public partial class TextOverlayWindow : Window
     private const double PlatePadding = 12;
     private const int ShortTextLimit = 10;
     private const double MinCaptureSize = 50;
+    private const int VisibilityFadeDurationMs = 140;
     private Rect _captureRect;
     private System.Windows.Media.Brush _defaultBackground = System.Windows.Media.Brushes.Transparent;
     private System.Windows.Media.Brush _defaultOverlayBackground = System.Windows.Media.Brushes.Transparent;
@@ -51,9 +53,16 @@ public partial class TextOverlayWindow : Window
     private ResizeHandle? _activeResizeHandle;
     private HwndSource? _hwndSource;
     private DispatcherTimer? _ctrlPollTimer;
+    private DispatcherTimer? _hideWhenNoTextTimer;
+    private DispatcherTimer? _showWhenTextTimer;
     private bool _lastCtrlDown;
+    private ContentVisibilityState _contentState = ContentVisibilityState.Full;
+    private int _consecutiveEmptyFrames;
+    private bool _pendingHideUseDormantFrame;
+    private readonly SolidColorBrush _dormantOuterBorderBrush = new(System.Windows.Media.Color.FromArgb(150, 255, 255, 255));
 
     public event EventHandler<Rect>? CaptureRectChanged;
+    public event EventHandler<bool>? ContentVisibilityChanged;
 
     public TextOverlayWindow(Rect rect)
     {
@@ -80,6 +89,8 @@ public partial class TextOverlayWindow : Window
             _manualCts?.Cancel();
             DetachWindowHook();
             StopCtrlPolling();
+            StopNoTextHideTimer();
+            StopTextShowTimer();
         };
 
         CacheDefaults();
@@ -200,9 +211,11 @@ public partial class TextOverlayWindow : Window
         var normalized = NormalizeForCompare(text);
         if (string.IsNullOrWhiteSpace(normalized))
         {
+            UpdateVisibilityForRecognizedText(app, hasText: false);
             return;
         }
 
+        UpdateVisibilityForRecognizedText(app, hasText: true);
         _lastCandidate = normalized;
         _lastStable = string.Empty;
         _lastChangeUtc = DateTime.UtcNow - TimeSpan.FromMilliseconds(app.Settings.Translation.StabilizationMs + 50);
@@ -526,7 +539,7 @@ public partial class TextOverlayWindow : Window
         }
         finally
         {
-            Opacity = 1;
+            Opacity = _contentState == ContentVisibilityState.Hidden ? 0 : 1;
         }
     }
 
@@ -588,10 +601,12 @@ public partial class TextOverlayWindow : Window
         var normalized = NormalizeForCompare(candidateText);
         if (string.IsNullOrWhiteSpace(normalized))
         {
+            UpdateVisibilityForRecognizedText(app, hasText: false);
             LogDebug("skip: empty normalized");
             return;
         }
 
+        UpdateVisibilityForRecognizedText(app, hasText: true);
         var isSame = string.Equals(normalized, _lastCandidate, StringComparison.Ordinal);
         if (!isSame && IsShortTextTransition(normalized, _lastCandidate))
         {
@@ -1115,6 +1130,211 @@ public partial class TextOverlayWindow : Window
         EditorStatusTextBlock.Visibility = Visibility.Hidden;
     }
 
+    private void UpdateVisibilityForRecognizedText(App app, bool hasText)
+    {
+        if (Dispatcher.CheckAccess())
+        {
+            UpdateVisibilityForRecognizedTextCore(app, hasText);
+            return;
+        }
+
+        Dispatcher.Invoke(() => UpdateVisibilityForRecognizedTextCore(app, hasText));
+    }
+
+    private void UpdateVisibilityForRecognizedTextCore(App app, bool hasText)
+    {
+        if (!app.Settings.Overlay.AutoHideWhenNoText)
+        {
+            StopNoTextHideTimer();
+            StopTextShowTimer();
+            _consecutiveEmptyFrames = 0;
+            SetContentVisibility(ContentVisibilityState.Full);
+            return;
+        }
+
+        if (hasText)
+        {
+            _consecutiveEmptyFrames = 0;
+            StopNoTextHideTimer();
+            TryShowWithDelay(app.Settings.Overlay.AutoHideNoTextShowDelayMs);
+            return;
+        }
+
+        _consecutiveEmptyFrames++;
+        var requiredEmptyFrames = Math.Clamp(app.Settings.Overlay.AutoHideNoTextEmptyFrames, 1, 5);
+        if (_consecutiveEmptyFrames < requiredEmptyFrames)
+        {
+            return;
+        }
+
+        StartNoTextHideTimer(
+            app.Settings.Overlay.AutoHideNoTextHideDelayMs,
+            app.Settings.Overlay.AutoHideNoTextShowDormantFrame);
+    }
+
+    private void StartNoTextHideTimer(int delayMs, bool useDormantFrame)
+    {
+        if (_contentState != ContentVisibilityState.Full)
+        {
+            return;
+        }
+
+        _hideWhenNoTextTimer ??= new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(Math.Clamp(delayMs, 200, 1500))
+        };
+
+        StopTextShowTimer();
+        _pendingHideUseDormantFrame = useDormantFrame;
+        _hideWhenNoTextTimer.Interval = TimeSpan.FromMilliseconds(Math.Clamp(delayMs, 200, 1500));
+        _hideWhenNoTextTimer.Stop();
+        _hideWhenNoTextTimer.Tick -= HideWhenNoTextTimer_Tick;
+        _hideWhenNoTextTimer.Tick += HideWhenNoTextTimer_Tick;
+        _hideWhenNoTextTimer.Start();
+    }
+
+    private void StopNoTextHideTimer()
+    {
+        if (_hideWhenNoTextTimer == null)
+        {
+            return;
+        }
+
+        _hideWhenNoTextTimer.Stop();
+        _hideWhenNoTextTimer.Tick -= HideWhenNoTextTimer_Tick;
+    }
+
+    private void TryShowWithDelay(int delayMs)
+    {
+        if (_contentState == ContentVisibilityState.Full)
+        {
+            StopTextShowTimer();
+            return;
+        }
+
+        var clamped = Math.Clamp(delayMs, 0, 800);
+        if (clamped <= 0)
+        {
+            StopTextShowTimer();
+            SetContentVisibilityCore(ContentVisibilityState.Full);
+            return;
+        }
+
+        _showWhenTextTimer ??= new DispatcherTimer();
+        _showWhenTextTimer.Interval = TimeSpan.FromMilliseconds(clamped);
+        _showWhenTextTimer.Stop();
+        _showWhenTextTimer.Tick -= ShowWhenTextTimer_Tick;
+        _showWhenTextTimer.Tick += ShowWhenTextTimer_Tick;
+        _showWhenTextTimer.Start();
+    }
+
+    private void StopTextShowTimer()
+    {
+        if (_showWhenTextTimer == null)
+        {
+            return;
+        }
+
+        _showWhenTextTimer.Stop();
+        _showWhenTextTimer.Tick -= ShowWhenTextTimer_Tick;
+    }
+
+    private void HideWhenNoTextTimer_Tick(object? sender, EventArgs e)
+    {
+        StopNoTextHideTimer();
+        SetContentVisibilityCore(
+            _pendingHideUseDormantFrame
+                ? ContentVisibilityState.Dormant
+                : ContentVisibilityState.Hidden);
+    }
+
+    private void ShowWhenTextTimer_Tick(object? sender, EventArgs e)
+    {
+        StopTextShowTimer();
+        SetContentVisibilityCore(ContentVisibilityState.Full);
+    }
+
+    private void SetContentVisibility(ContentVisibilityState state)
+    {
+        if (Dispatcher.CheckAccess())
+        {
+            SetContentVisibilityCore(state);
+            return;
+        }
+
+        Dispatcher.Invoke(() => SetContentVisibilityCore(state));
+    }
+
+    private void SetContentVisibilityCore(ContentVisibilityState state)
+    {
+        if (_contentState == state)
+        {
+            return;
+        }
+
+        var wasVisibleContent = _contentState == ContentVisibilityState.Full;
+        _contentState = state;
+
+        switch (state)
+        {
+            case ContentVisibilityState.Full:
+                ApplyFullContentVisualState();
+                AnimateWindowOpacity(1);
+                break;
+            case ContentVisibilityState.Dormant:
+                ApplyDormantFrameVisualState();
+                AnimateWindowOpacity(1);
+                break;
+            default:
+                ApplyFullContentVisualState();
+                AnimateWindowOpacity(0);
+                break;
+        }
+
+        var isVisibleContent = state == ContentVisibilityState.Full;
+        if (wasVisibleContent != isVisibleContent)
+        {
+            ContentVisibilityChanged?.Invoke(this, isVisibleContent);
+        }
+    }
+
+    private void ApplyFullContentVisualState()
+    {
+        OverlayPath.Visibility = Visibility.Visible;
+        Card.Visibility = Visibility.Visible;
+        InnerBorder.Visibility = Visibility.Visible;
+        OuterBorder.BorderBrush = _defaultOuterBorderBrush;
+        OuterBorder.BorderThickness = new Thickness(2);
+        InnerBorder.BorderBrush = _defaultInnerBorderBrush;
+    }
+
+    private void ApplyDormantFrameVisualState()
+    {
+        OverlayPath.Visibility = Visibility.Collapsed;
+        Card.Visibility = Visibility.Collapsed;
+        InnerBorder.Visibility = Visibility.Collapsed;
+        OuterBorder.BorderBrush = _dormantOuterBorderBrush;
+        OuterBorder.BorderThickness = new Thickness(1);
+    }
+
+    private void AnimateWindowOpacity(double targetOpacity)
+    {
+        BeginAnimation(Window.OpacityProperty, null);
+        var animation = new DoubleAnimation
+        {
+            To = targetOpacity,
+            Duration = TimeSpan.FromMilliseconds(VisibilityFadeDurationMs),
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+        };
+        BeginAnimation(Window.OpacityProperty, animation, HandoffBehavior.SnapshotAndReplace);
+    }
+
+    public void SimulateRecognizedTextPresence(bool hasText)
+    {
+        var app = (App)System.Windows.Application.Current;
+        UpdateVisibilityForRecognizedText(app, hasText);
+    }
+
     private FontWeight GetTranslatedFontWeight(bool isTranslated)
     {
         if (!isTranslated)
@@ -1426,6 +1646,11 @@ public partial class TextOverlayWindow : Window
 
     public void SetHighlight(bool isHighlighted)
     {
+        if (_contentState != ContentVisibilityState.Full)
+        {
+            return;
+        }
+
         if (isHighlighted)
         {
             OuterBorder.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(255, 255, 255, 255));
@@ -1716,6 +1941,13 @@ public partial class TextOverlayWindow : Window
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern short GetAsyncKeyState(int vKey);
+
+    private enum ContentVisibilityState
+    {
+        Full,
+        Dormant,
+        Hidden
+    }
 
     private enum ResizeHandle
     {

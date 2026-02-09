@@ -367,6 +367,94 @@
                                            TextWrapping="Wrap"
                                            Foreground="#555"/>
 
+                                <Border Margin="0,12,0,0"
+                                        Padding="10"
+                                        BorderBrush="#1F6FA8DC"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Background="#0D6FA8DC">
+                                    <StackPanel>
+                                        <TextBlock x:Name="ExperimentalOverlayGroupHeader"
+                                                   FontWeight="SemiBold"/>
+
+                                        <CheckBox x:Name="ExperimentalOverlayAutoHideCheckBox"
+                                                  Margin="0,8,0,0"
+                                                  Content="Experimental auto-hide overlay without text"
+                                                  Checked="ExperimentalOverlayAutoHide_Changed"
+                                                  Unchecked="ExperimentalOverlayAutoHide_Changed"/>
+                                        <TextBlock x:Name="ExperimentalOverlayOnlyTranslationHint"
+                                                   Margin="0,4,0,0"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="#555"/>
+                                        <CheckBox x:Name="ExperimentalOverlayDormantFrameCheckBox"
+                                                  Margin="0,8,0,0"
+                                                  Content="Show thin frame instead of full hide"
+                                                  Checked="ExperimentalOverlayDormantFrame_Changed"
+                                                  Unchecked="ExperimentalOverlayDormantFrame_Changed"/>
+
+                                        <TextBlock x:Name="ExperimentalOverlayHideDelayLabel"
+                                                   Margin="0,10,0,4"
+                                                   FontWeight="SemiBold"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Slider x:Name="ExperimentalOverlayHideDelaySlider"
+                                                    Width="180"
+                                                    Minimum="200"
+                                                    Maximum="1500"
+                                                    SmallChange="50"
+                                                    LargeChange="100"
+                                                    ValueChanged="ExperimentalOverlayHideDelay_Changed"/>
+                                            <TextBlock x:Name="ExperimentalOverlayHideDelayValue"
+                                                       Margin="8,0,0,0"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <TextBlock x:Name="ExperimentalOverlayShowDelayLabel"
+                                                   Margin="0,10,0,4"
+                                                   FontWeight="SemiBold"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Slider x:Name="ExperimentalOverlayShowDelaySlider"
+                                                    Width="180"
+                                                    Minimum="0"
+                                                    Maximum="800"
+                                                    SmallChange="25"
+                                                    LargeChange="50"
+                                                    ValueChanged="ExperimentalOverlayShowDelay_Changed"/>
+                                            <TextBlock x:Name="ExperimentalOverlayShowDelayValue"
+                                                       Margin="8,0,0,0"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <TextBlock x:Name="ExperimentalOverlayEmptyFramesLabel"
+                                                   Margin="0,10,0,4"
+                                                   FontWeight="SemiBold"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Slider x:Name="ExperimentalOverlayEmptyFramesSlider"
+                                                    Width="180"
+                                                    Minimum="1"
+                                                    Maximum="5"
+                                                    TickFrequency="1"
+                                                    IsSnapToTickEnabled="True"
+                                                    SmallChange="1"
+                                                    LargeChange="1"
+                                                    ValueChanged="ExperimentalOverlayEmptyFrames_Changed"/>
+                                            <TextBlock x:Name="ExperimentalOverlayEmptyFramesValue"
+                                                       Margin="8,0,0,0"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal"
+                                                    Margin="0,10,0,0">
+                                            <Button x:Name="ExperimentalOverlayTestHideButton"
+                                                    Width="160"
+                                                    Click="ExperimentalOverlayTestHide_Click"/>
+                                            <Button x:Name="ExperimentalOverlayTestShowButton"
+                                                    Width="160"
+                                                    Margin="8,0,0,0"
+                                                    Click="ExperimentalOverlayTestShow_Click"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
                                 <TextBlock x:Name="ExperimentalWarningText"
                                            Margin="0,8,0,0"
                                            TextWrapping="Wrap"

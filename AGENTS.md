@@ -1,3 +1,14 @@
+Project Overview
+UltScan is a Windows/WPF screen text OCR + translation tool.
+Main flow: global hotkey -> area selection -> OCR -> translation -> movable overlay output.
+Primary stack/services: WPF, Windows.Media.Ocr, Google Translate (Web or API v3).
+For full public product description, see README.md (English first, then Russian).
+
+Кратко о проекте
+UltScan — Windows/WPF-инструмент для OCR и перевода текста с экрана.
+Основной сценарий: глобальный хоткей -> выделение области -> OCR -> перевод -> перемещаемый оверлей.
+Ключевой стек/сервисы: WPF, Windows.Media.Ocr, Google Translate (Web или API v3).
+Подробное публичное описание проекта смотри в README.md (сначала English, затем Русский).
 Versioning
 Версия проекта выглядит как MAJOR.MINOR.PATCH.BUID. Где MAJOR — мажорная версия (Большие изменения, ломающие совместимость или другие значительные изменения), MINOR — минорная версия (Новые фичи, но без поломки старого), PATCH — патч (малые исправления), BUID - номер версии билда за день (каждый раз, когда мы увеличиваем версию за день, BUID увеличивается на 1; на следующий день версия BUID сбрасывается до 1 на первом увеличении версии за день). Когда мы увеличиваем мажорную версию, минорная версия и патч сбрасываются до 1. При изменении версии увеличиваем BUILD на 1. Если я просто прошу увеличить версию проекта без уточнений, имеется в виду увеличить PATCH на 1. Если я не уверена, является ли повышение версии первым за текущий день, я обязана уточнить это у разработчика. Если повышение первое за день, BUILD нужно сбросить до 1.
 

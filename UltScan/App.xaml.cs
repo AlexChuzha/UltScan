@@ -300,6 +300,7 @@ namespace UltScan
             _overlayWindow = new TextOverlayWindow(rect);
             _overlayWindow.Closed += (_, __) => _overlayWindow = null;
             _overlayWindow.CaptureRectChanged += (_, updated) => UpdateOverlayRect(updated);
+            _overlayWindow.ContentVisibilityChanged += OverlayWindow_ContentVisibilityChanged;
             _overlayWindow.Show();
 
             var outputRect = _overlayWindow != null
@@ -332,6 +333,33 @@ namespace UltScan
         private void SetOverlayHighlight(bool isHighlighted)
         {
             _overlayWindow?.SetHighlight(isHighlighted);
+        }
+
+        private void OverlayWindow_ContentVisibilityChanged(object? sender, bool isVisible)
+        {
+            if (_overlayWindow == null || !ReferenceEquals(sender, _overlayWindow))
+            {
+                return;
+            }
+
+            if (isVisible)
+            {
+                if (_pinWindow != null && !_pinWindow.IsVisible)
+                {
+                    _pinWindow.Show();
+                }
+
+                UpdatePinWindowPosition();
+            }
+            else
+            {
+                _pinWindow?.Hide();
+            }
+        }
+
+        public void SimulateOverlayAutoHideTextState(bool hasText)
+        {
+            _overlayWindow?.SimulateRecognizedTextPresence(hasText);
         }
 
         private void CloseOverlayWindow()
