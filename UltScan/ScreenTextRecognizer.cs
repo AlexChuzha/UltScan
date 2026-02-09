@@ -207,23 +207,102 @@ public static class ScreenTextRecognizer
     private static List<OcrEngine> GetOcrEngines()
     {
         var engines = new List<OcrEngine>();
+        var preferredSourceLanguage = GetPreferredOcrLanguageFromSettings();
+
+        if (!string.IsNullOrWhiteSpace(preferredSourceLanguage))
+        {
+            TryAddLanguageEngine(engines, preferredSourceLanguage);
+        }
+
         var userEngine = OcrEngine.TryCreateFromUserProfileLanguages();
-        if (userEngine != null)
+        if (userEngine != null && !ContainsLanguage(engines, userEngine.RecognizerLanguage.LanguageTag))
         {
             engines.Add(userEngine);
         }
 
-        var english = new Language("en");
-        if (OcrEngine.IsLanguageSupported(english))
+        TryAddLanguageEngine(engines, "en");
+
+        return engines;
+    }
+
+    private static string? GetPreferredOcrLanguageFromSettings()
+    {
+        if (System.Windows.Application.Current is not App app)
         {
-            var enEngine = OcrEngine.TryCreateFromLanguage(english);
-            if (enEngine != null && (userEngine == null || enEngine.RecognizerLanguage.LanguageTag != userEngine.RecognizerLanguage.LanguageTag))
+            return null;
+        }
+
+        var sourceLanguage = app.Settings?.Translation?.SourceLanguage;
+        if (string.IsNullOrWhiteSpace(sourceLanguage) ||
+            string.Equals(sourceLanguage, "auto", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return sourceLanguage.Trim();
+    }
+
+    private static void TryAddLanguageEngine(List<OcrEngine> engines, string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return;
+        }
+
+        if (TryCreateEngine(code, out var engine) &&
+            engine != null &&
+            !ContainsLanguage(engines, engine.RecognizerLanguage.LanguageTag))
+        {
+            engines.Add(engine);
+            return;
+        }
+
+        var dash = code.IndexOf('-');
+        if (dash <= 0)
+        {
+            return;
+        }
+
+        var neutral = code.Substring(0, dash);
+        if (TryCreateEngine(neutral, out engine) &&
+            engine != null &&
+            !ContainsLanguage(engines, engine.RecognizerLanguage.LanguageTag))
+        {
+            engines.Add(engine);
+        }
+    }
+
+    private static bool TryCreateEngine(string code, out OcrEngine? engine)
+    {
+        engine = null;
+        try
+        {
+            var language = new Language(code);
+            if (!OcrEngine.IsLanguageSupported(language))
             {
-                engines.Add(enEngine);
+                return false;
+            }
+
+            engine = OcrEngine.TryCreateFromLanguage(language);
+            return engine != null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool ContainsLanguage(List<OcrEngine> engines, string tag)
+    {
+        foreach (var existing in engines)
+        {
+            if (string.Equals(existing.RecognizerLanguage.LanguageTag, tag, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
             }
         }
 
-        return engines;
+        return false;
     }
 
     private static async Task<OcrLayoutResult> RecognizeBestAsync(Bitmap bitmap, Rect rect, List<OcrEngine> engines)
