@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>0.1.27.1</Version>
+    <Version>0.1.28.2</Version>
     <AssemblyTitle>UltScan</AssemblyTitle>
     <Product>UltScan</Product>
     <Company>Alex Chuzha</Company>

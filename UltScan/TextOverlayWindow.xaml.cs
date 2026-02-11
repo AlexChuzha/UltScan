@@ -559,7 +559,11 @@ public partial class TextOverlayWindow : Window
 
     private async Task StartRecognitionAsync()
     {
-        Opacity = 0;
+        if (System.Windows.Application.Current is App app && app.Settings.Translation.Enabled)
+        {
+            ShowTranslationStatus(app);
+        }
+
         try
         {
             await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
@@ -761,7 +765,13 @@ public partial class TextOverlayWindow : Window
 
         if (translated == null && translatedBodies == null)
         {
-            LogDebug("skip: translation null");
+            await Dispatcher.InvokeAsync(() =>
+            {
+                RenderPlainText(stableText);
+                HideTranslationStatus();
+            });
+            TranslationLogger.LogPair(stableText, string.Empty);
+            LogDebug("skip: translation null, fallback to ocr");
             return;
         }
 
