@@ -1583,7 +1583,7 @@ public partial class TextOverlayWindow : Window
         string provider)
     {
         var bodies = blocks
-            .Select(b => string.Join(Environment.NewLine, b.BodyLines))
+            .Select(b => ComposeBodyForTranslation(b.BodyLines))
             .ToList();
 
         if (bodies.Count == 0)
@@ -1634,6 +1634,50 @@ public partial class TextOverlayWindow : Window
         }
 
         return perBlock;
+    }
+
+    private static string ComposeBodyForTranslation(IReadOnlyList<string> lines)
+    {
+        if (lines == null || lines.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var joined = string.Join(" ",
+            lines
+                .Select(l => l?.Trim())
+                .Where(l => !string.IsNullOrWhiteSpace(l)));
+
+        return CollapseWhitespace(joined);
+    }
+
+    private static string CollapseWhitespace(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        var sb = new System.Text.StringBuilder(text.Length);
+        var wasSpace = false;
+        foreach (var ch in text)
+        {
+            if (char.IsWhiteSpace(ch))
+            {
+                if (!wasSpace)
+                {
+                    sb.Append(' ');
+                    wasSpace = true;
+                }
+            }
+            else
+            {
+                sb.Append(ch);
+                wasSpace = false;
+            }
+        }
+
+        return sb.ToString().Trim();
     }
 
     private static string NormalizeTranslatedBodyText(string text)
