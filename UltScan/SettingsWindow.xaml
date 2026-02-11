@@ -283,7 +283,7 @@
                         </GroupBox>
 
                         <GroupBox Margin="0,0,0,12"
-                                  Visibility="Collapsed">
+                                  Visibility="Visible">
                             <GroupBox.Header>
                                 <TextBlock x:Name="TranslationConnectionHeaderText"
                                            FontWeight="SemiBold"/>
@@ -315,6 +315,12 @@
                                          TextChanged="TranslationApiKey_Changed"/>
 
                                 <TextBlock x:Name="TranslationApiKeyWarning"
+                                           Margin="0,8,0,0"
+                                           TextWrapping="Wrap"
+                                           Foreground="#B00020"
+                                           Visibility="Collapsed"/>
+
+                                <TextBlock x:Name="TranslationUnofficialWarning"
                                            Margin="0,8,0,0"
                                            TextWrapping="Wrap"
                                            Foreground="#B00020"
@@ -356,28 +362,48 @@
                                                Margin="8,0,0,0"
                                                VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <CheckBox x:Name="OverlayCtrlResizeCheckBox"
-                                          Margin="0,12,0,0"
-                                          Content="Ctrl resize overlay"
-                                          Checked="OverlayCtrlResize_Changed"
-                                          Unchecked="OverlayCtrlResize_Changed"/>
-                                <TextBlock x:Name="OverlayCtrlResizeWarning"
-                                           Margin="0,4,0,0"
-                                           TextWrapping="Wrap"
-                                           Foreground="#B00020"
-                                           Visibility="Collapsed"/>
-                                <TextBlock x:Name="OverlayCtrlResizeHelpLink"
-                                           Margin="0,4,0,0"
-                                           Foreground="#1A73E8"
-                                           TextDecorations="Underline"
-                                           Cursor="Hand"
-                                           Visibility="Collapsed"
-                                           MouseLeftButtonUp="OverlayCtrlResizeHelp_Click"/>
-                                <TextBlock x:Name="OverlayCtrlResizeHelpText"
-                                           Margin="0,4,0,0"
-                                           TextWrapping="Wrap"
-                                           Foreground="#555"
-                                           Visibility="Collapsed"/>
+                                <Border Margin="0,12,0,0"
+                                        Padding="10"
+                                        BorderBrush="#1F6FA8DC"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Background="#0D6FA8DC">
+                                    <StackPanel>
+                                        <CheckBox x:Name="OverlayCtrlResizeCheckBox"
+                                                  Content="Ctrl resize overlay"
+                                                  Checked="OverlayCtrlResize_Changed"
+                                                  Unchecked="OverlayCtrlResize_Changed"/>
+                                        <TextBlock x:Name="OverlayCtrlResizeWarning"
+                                                   Margin="0,4,0,0"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="#B00020"
+                                                   Visibility="Collapsed"/>
+                                        <TextBlock x:Name="OverlayCtrlResizeHelpLink"
+                                                   Margin="0,4,0,0"
+                                                   Foreground="#1A73E8"
+                                                   TextDecorations="Underline"
+                                                   Cursor="Hand"
+                                                   Visibility="Collapsed"
+                                                   MouseLeftButtonUp="OverlayCtrlResizeHelp_Click"/>
+                                        <StackPanel x:Name="OverlayCtrlResizeHelpPanel"
+                                                    Margin="0,4,0,0"
+                                                    Visibility="Collapsed">
+                                            <TextBlock x:Name="OverlayCtrlResizeHelpText"
+                                                       TextWrapping="Wrap"
+                                                       Foreground="#555"/>
+                                            <Button x:Name="RunAsAdminButton"
+                                                    Margin="0,8,0,0"
+                                                    HorizontalAlignment="Left"
+                                                    MinWidth="220"
+                                                    Click="RunAsAdminButton_Click"/>
+                                            <TextBlock x:Name="RunAsAdminStatusText"
+                                                       Margin="0,8,0,0"
+                                                       TextWrapping="Wrap"
+                                                       Foreground="#2E7D32"
+                                                       Visibility="Collapsed"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </GroupBox>
                     </StackPanel>

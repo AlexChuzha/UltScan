@@ -16,6 +16,7 @@ namespace UltScan
     public partial class App : System.Windows.Application
     {
         private const string SingleInstanceMutexName = @"Local\AlexChuzha.UltScan.SingleInstance";
+        public const string ElevatedRestartArg = "--elevated-restart";
         private static readonly Mutex SingleInstanceMutex = new(initiallyOwned: false, name: SingleInstanceMutexName);
         private Forms.NotifyIcon? _notifyIcon;
         private Forms.ToolStripMenuItem? _captureItem;
@@ -37,15 +38,7 @@ namespace UltScan
         [STAThread]
         public static void Main(string[] args)
         {
-            var hasOwnership = false;
-            try
-            {
-                hasOwnership = SingleInstanceMutex.WaitOne(0, false);
-            }
-            catch (AbandonedMutexException)
-            {
-                hasOwnership = true;
-            }
+            var hasOwnership = TryAcquireSingleInstanceMutex(args);
 
             if (!hasOwnership)
             {
@@ -64,6 +57,36 @@ namespace UltScan
                 SingleInstanceMutex.ReleaseMutex();
                 SingleInstanceMutex.Dispose();
             }
+        }
+
+        private static bool TryAcquireSingleInstanceMutex(string[] args)
+        {
+            var isElevatedRestart = Array.Exists(
+                args,
+                a => string.Equals(a, ElevatedRestartArg, StringComparison.OrdinalIgnoreCase));
+            var attempts = isElevatedRestart ? 30 : 1;
+
+            for (var i = 0; i < attempts; i++)
+            {
+                try
+                {
+                    if (SingleInstanceMutex.WaitOne(0, false))
+                    {
+                        return true;
+                    }
+                }
+                catch (AbandonedMutexException)
+                {
+                    return true;
+                }
+
+                if (i + 1 < attempts)
+                {
+                    Thread.Sleep(120);
+                }
+            }
+
+            return false;
         }
 
         protected override void OnStartup(StartupEventArgs e)

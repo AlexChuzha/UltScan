@@ -1,7 +1,10 @@
 using System;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Principal;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -34,11 +37,13 @@ public partial class SettingsWindow : Window
     private readonly ModeOption[] _modeOptions;
     private readonly ThemeOption[] _themeOptions;
     private readonly string _appVersionText;
+    private readonly bool _isRunningAsAdmin;
 
     public SettingsWindow()
     {
         _app = (App)System.Windows.Application.Current;
         _loc = _app.Localization;
+        _isRunningAsAdmin = IsProcessElevated();
         _originalSettings = CloneSettings(_app.Settings);
         _pendingSettings = CloneSettings(_app.Settings);
         _appVersionText = BuildVersionText();
@@ -51,7 +56,8 @@ public partial class SettingsWindow : Window
         _providerOptions = new[]
         {
             new ProviderOption(TranslationService.ProviderApi, "Settings.TranslationProviderApi"),
-            new ProviderOption(TranslationService.ProviderWeb, "Settings.TranslationProviderWeb")
+            new ProviderOption(TranslationService.ProviderWeb, "Settings.TranslationProviderWeb"),
+            new ProviderOption(TranslationService.ProviderWebSiteExperimental, "Settings.TranslationProviderWebSiteExperimental")
         };
         _overlayOptions = new[]
         {
@@ -464,7 +470,7 @@ public partial class SettingsWindow : Window
             : Visibility.Collapsed;
         if (!showWarning)
         {
-            OverlayCtrlResizeHelpText.Visibility = Visibility.Collapsed;
+            OverlayCtrlResizeHelpPanel.Visibility = Visibility.Collapsed;
         }
         MarkDirty();
     }
@@ -543,9 +549,45 @@ public partial class SettingsWindow : Window
 
     private void OverlayCtrlResizeHelp_Click(object sender, RoutedEventArgs e)
     {
-        OverlayCtrlResizeHelpText.Visibility = OverlayCtrlResizeHelpText.Visibility == Visibility.Visible
+        OverlayCtrlResizeHelpPanel.Visibility = OverlayCtrlResizeHelpPanel.Visibility == Visibility.Visible
             ? Visibility.Collapsed
             : Visibility.Visible;
+        UpdateRunAsAdminControls();
+    }
+
+    private void RunAsAdminButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var exePath = Environment.ProcessPath;
+            if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
+            {
+                throw new InvalidOperationException("Executable path is unavailable.");
+            }
+
+            var startInfo = new ProcessStartInfo(exePath)
+            {
+                UseShellExecute = true,
+                Verb = "runas",
+                Arguments = App.ElevatedRestartArg,
+                WorkingDirectory = Path.GetDirectoryName(exePath) ?? Environment.CurrentDirectory
+            };
+
+            Process.Start(startInfo);
+            System.Windows.Application.Current.Shutdown();
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
+        {
+            // UAC prompt was canceled by user.
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                string.Format(_loc["Settings.RunAsAdminFailed"], ex.Message),
+                _loc["Message.Title"],
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
@@ -631,6 +673,7 @@ public partial class SettingsWindow : Window
         TranslationApiKeyWarning.Text = string.Format(
             _loc["Settings.TranslationApiKeyWarning"],
             TranslationService.ApiKeyEnvName);
+        TranslationUnofficialWarning.Text = _loc["Settings.TranslationProviderWebSiteExperimentalWarning"];
         TranslationLanguageHeaderText.Text = _loc["Settings.TranslationLanguagesHeader"];
         TranslationConnectionHeaderText.Text = _loc["Settings.TranslationConnectionHeader"];
         ExperimentalHeaderText.Text = _loc["Settings.ExperimentalHeader"];
@@ -641,6 +684,9 @@ public partial class SettingsWindow : Window
         OverlayCtrlResizeWarning.Text = _loc["Settings.OverlayCtrlResizeWarning"];
         OverlayCtrlResizeHelpLink.Text = _loc["Settings.OverlayCtrlResizeHelpLink"];
         OverlayCtrlResizeHelpText.Text = _loc["Settings.OverlayCtrlResizeHelpText"];
+        RunAsAdminButton.Content = _loc["Settings.RunAsAdmin"];
+        RunAsAdminStatusText.Text = _loc["Settings.RunAsAdminAlready"];
+        UpdateRunAsAdminControls();
         ExperimentalOverlayGroupHeader.Text = _loc["Settings.ExperimentalOverlayGroupHeader"];
         ExperimentalOverlayAutoHideCheckBox.Content = _loc["Settings.ExperimentalOverlayAutoHideNoText"];
         ExperimentalOverlayOnlyTranslationHint.Text = _loc["Settings.ExperimentalOverlayAutoHideOnlyTranslation"];
@@ -763,7 +809,7 @@ public partial class SettingsWindow : Window
             : Visibility.Collapsed;
         if (!showWarning)
         {
-            OverlayCtrlResizeHelpText.Visibility = Visibility.Collapsed;
+            OverlayCtrlResizeHelpPanel.Visibility = Visibility.Collapsed;
         }
         _suppressOverlayChange = false;
         _suppressDirty = false;
@@ -856,6 +902,30 @@ public partial class SettingsWindow : Window
         TranslationFontCombo.SelectedItem = selected;
 
         _suppressFontChange = false;
+    }
+
+    private void UpdateRunAsAdminControls()
+    {
+        RunAsAdminButton.Visibility = _isRunningAsAdmin
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        RunAsAdminStatusText.Visibility = _isRunningAsAdmin
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    private static bool IsProcessElevated()
+    {
+        try
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            var principal = new WindowsPrincipal(identity);
+            return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     
@@ -971,12 +1041,19 @@ public partial class SettingsWindow : Window
     private void UpdateTranslationWarnings()
     {
         var isApi = string.Equals(_pendingSettings.Translation.Provider, TranslationService.ProviderApi, StringComparison.OrdinalIgnoreCase);
+        var isWebSiteExperimental = string.Equals(
+            _pendingSettings.Translation.Provider,
+            TranslationService.ProviderWebSiteExperimental,
+            StringComparison.OrdinalIgnoreCase);
         var keyMissing = string.IsNullOrWhiteSpace(_pendingSettings.Translation.ApiKey)
             && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(TranslationService.ApiKeyEnvName));
         var projectMissing = string.IsNullOrWhiteSpace(_pendingSettings.Translation.ProjectId);
         var showWarning = _pendingSettings.Translation.Enabled && isApi && (keyMissing || projectMissing);
 
         TranslationApiKeyWarning.Visibility = showWarning ? Visibility.Visible : Visibility.Collapsed;
+        TranslationUnofficialWarning.Visibility = _pendingSettings.Translation.Enabled && isWebSiteExperimental
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private void RebuildOverlayOptions()

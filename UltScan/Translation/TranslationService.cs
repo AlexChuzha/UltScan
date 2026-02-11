@@ -15,6 +15,7 @@ public static class TranslationService
     public static string ApiKeyEnvName => "ULTSCAN_GOOGLE_TRANSLATE_API_KEY";
     public const string ProviderApi = "api";
     public const string ProviderWeb = "web";
+    public const string ProviderWebSiteExperimental = "web_site_experimental";
 
     public static async Task<string?> TranslateAsync(
         string text,
@@ -24,12 +25,41 @@ public static class TranslationService
         string? apiKeyOverride,
         string provider)
     {
+        if (string.Equals(provider, ProviderWebSiteExperimental, StringComparison.OrdinalIgnoreCase))
+        {
+            return await TranslateViaWebsiteExperimentalAsync(text, sourceLanguage, targetLanguage).ConfigureAwait(false);
+        }
+
         if (string.Equals(provider, ProviderWeb, StringComparison.OrdinalIgnoreCase))
         {
             return await TranslateViaWebAsync(text, sourceLanguage, targetLanguage).ConfigureAwait(false);
         }
 
         return await TranslateViaApiAsync(text, sourceLanguage, targetLanguage, projectId, apiKeyOverride).ConfigureAwait(false);
+    }
+
+    private static async Task<string?> TranslateViaWebsiteExperimentalAsync(string text, string sourceLanguage, string targetLanguage)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        if (string.IsNullOrWhiteSpace(targetLanguage))
+        {
+            return null;
+        }
+
+        var sl = string.IsNullOrWhiteSpace(sourceLanguage) ? "auto" : sourceLanguage;
+        var tl = NormalizeLanguageCode(targetLanguage);
+
+        var viaWebapp = await TranslateViaWebAppSingleAsync(text, sl, tl).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(viaWebapp))
+        {
+            return viaWebapp;
+        }
+
+        return await TranslateViaWebAsync(text, sl, tl).ConfigureAwait(false);
     }
 
     private static async Task<string?> TranslateViaApiAsync(
@@ -143,6 +173,57 @@ public static class TranslationService
                 {
                     sb.Append(piece.GetString());
                 }
+            }
+
+            return sb.Length > 0 ? sb.ToString() : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static async Task<string?> TranslateViaWebAppSingleAsync(string text, string sourceLanguage, string targetLanguage)
+    {
+        var url = $"https://translate.google.com/translate_a/single?client=webapp&sl={Uri.EscapeDataString(sourceLanguage)}&tl={Uri.EscapeDataString(targetLanguage)}&hl={Uri.EscapeDataString(targetLanguage)}&dt=t&dj=1&source=input&q={Uri.EscapeDataString(text)}";
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0");
+
+        using var response = await Client.SendAsync(request).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            if (!doc.RootElement.TryGetProperty("sentences", out var sentences) ||
+                sentences.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+
+            var sb = new StringBuilder();
+            foreach (var sentence in sentences.EnumerateArray())
+            {
+                if (sentence.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                if (!sentence.TryGetProperty("trans", out var trans) || trans.ValueKind != JsonValueKind.String)
+                {
+                    continue;
+                }
+
+                sb.Append(trans.GetString());
             }
 
             return sb.Length > 0 ? sb.ToString() : null;

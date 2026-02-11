@@ -1409,12 +1409,43 @@ public partial class TextOverlayWindow : Window
 
         var avgGap = gaps.Count > 0 ? gaps.Average() : 0;
 
+        static bool EndsWithStrongSentenceTerminator(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return false;
+            }
+
+            var trimmed = text.TrimEnd();
+            var last = trimmed[^1];
+            return last == '.' || last == '!' || last == '?' || last == '…';
+        }
+
+        static bool EndsWithContinuationPunctuation(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return false;
+            }
+
+            var trimmed = text.TrimEnd();
+            var last = trimmed[^1];
+            return last == ',' || last == ';' || last == ':' || last == '-';
+        }
+
         bool IsCaptionLine(OcrLineLayout line, int index)
         {
             var text = line.Text.Trim();
             var len = text.Length;
             var wordCount = text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
             var width = line.Bounds.Width;
+            var isShortTail = wordCount <= 3 || len <= Math.Max(10, avgLen * 0.5) || width <= avgWidth * 0.6;
+
+            // Last OCR line is often a wrapped tail of the previous sentence, not a speaker caption.
+            if (index == ordered.Count - 1 && ordered.Count > 1)
+            {
+                return false;
+            }
 
             var lenScore = len <= Math.Max(6, avgLen * 0.65);
             var widthScore = width <= avgWidth * 0.75;
@@ -1430,6 +1461,20 @@ public partial class TextOverlayWindow : Window
                 : avgGap;
             var gapScore = avgGap > 0 && (gapAbove >= avgGap * 1.4 || gapBelow >= avgGap * 1.4);
 
+            if (index > 0)
+            {
+                var prevText = ordered[index - 1].Text.Trim();
+                var tightGap = avgGap > 0
+                    ? gapAbove <= avgGap * 1.2
+                    : gapAbove <= Math.Max(4, line.Bounds.Height * 0.5);
+                var prevLikelyContinues = !EndsWithStrongSentenceTerminator(prevText) ||
+                                          EndsWithContinuationPunctuation(prevText);
+                if (tightGap && prevLikelyContinues && isShortTail)
+                {
+                    return false;
+                }
+            }
+
             var wordScore = wordCount <= 3;
 
             var score = 0;
@@ -1439,7 +1484,24 @@ public partial class TextOverlayWindow : Window
             if (gapScore) score++;
             if (wordScore) score++;
 
-            return score >= 3;
+            // Without a visible block gap, caption must match stricter profile.
+            var minScore = gapScore ? 3 : 4;
+            if (score < minScore)
+            {
+                return false;
+            }
+
+            if (index + 1 < ordered.Count)
+            {
+                var nextText = ordered[index + 1].Text.Trim();
+                var nextLooksLikeBody = nextText.Length >= Math.Max(10, avgLen * 0.45);
+                if (!nextLooksLikeBody && !gapScore)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         var blocks = new List<VnBlock>();
@@ -1475,6 +1537,28 @@ public partial class TextOverlayWindow : Window
         if (current != null)
         {
             blocks.Add(current);
+        }
+
+        for (int i = 1; i < blocks.Count; i++)
+        {
+            var block = blocks[i];
+            if (string.IsNullOrWhiteSpace(block.Caption) || block.BodyLines.Count != 0)
+            {
+                continue;
+            }
+
+            var previous = blocks[i - 1];
+            if (previous.BodyLines.Count == 0)
+            {
+                continue;
+            }
+
+            // Merge orphan pseudo-caption (usually a wrapped sentence tail) back into previous body.
+            var tail = block.Caption.Trim();
+            var lastBodyIndex = previous.BodyLines.Count - 1;
+            previous.BodyLines[lastBodyIndex] = $"{previous.BodyLines[lastBodyIndex]} {tail}".Trim();
+            blocks.RemoveAt(i);
+            i--;
         }
 
         return hasCaption ? blocks : null;
@@ -1516,7 +1600,7 @@ public partial class TextOverlayWindow : Window
         var split = translated.Split(new[] { separator }, StringSplitOptions.None);
         if (split.Length == bodies.Count)
         {
-            return split;
+            return split.Select(NormalizeTranslatedBodyText).ToList();
         }
 
         var perBlock = new List<string>(bodies.Count);
@@ -1536,10 +1620,87 @@ public partial class TextOverlayWindow : Window
                 apiKeyOverride,
                 provider);
 
-            perBlock.Add(blockTranslation ?? string.Empty);
+            perBlock.Add(NormalizeTranslatedBodyText(blockTranslation ?? string.Empty));
         }
 
         return perBlock;
+    }
+
+    private static string NormalizeTranslatedBodyText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        var paragraphSeparator = "\n\n";
+        var rawParagraphs = text
+            .Replace("\r\n", "\n")
+            .Split(new[] { paragraphSeparator }, StringSplitOptions.None);
+
+        var normalizedParagraphs = new List<string>(rawParagraphs.Length);
+        foreach (var paragraph in rawParagraphs)
+        {
+            var lines = paragraph
+                .Split('\n')
+                .Select(l => l.Trim())
+                .Where(l => l.Length > 0)
+                .ToList();
+            if (lines.Count == 0)
+            {
+                continue;
+            }
+
+            var result = new List<string>(lines.Count);
+            for (var i = 0; i < lines.Count; i++)
+            {
+                var current = lines[i];
+                if (i + 1 < lines.Count && IsStandaloneConnectorLine(current))
+                {
+                    lines[i + 1] = $"{current} {lines[i + 1]}".Trim();
+                    continue;
+                }
+
+                result.Add(current);
+            }
+
+            normalizedParagraphs.Add(string.Join(" ", result));
+        }
+
+        return string.Join(Environment.NewLine + Environment.NewLine, normalizedParagraphs);
+    }
+
+    private static bool IsStandaloneConnectorLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return false;
+        }
+
+        var trimmed = line.Trim();
+        if (trimmed.Length > 10)
+        {
+            return false;
+        }
+
+        var words = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length > 2)
+        {
+            return false;
+        }
+
+        var normalized = new string(trimmed
+            .ToLowerInvariant()
+            .Where(c => char.IsLetter(c) || c == '\'')
+            .ToArray());
+        if (normalized.Length == 0)
+        {
+            return false;
+        }
+
+        return normalized is
+            "and" or "but" or "or" or "so" or "then" or "yet" or "nor" or
+            "и" or "но" or "а" or "или" or "да" or "зато";
     }
 
     private void RenderTranslationWithBlocks(
