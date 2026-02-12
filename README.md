@@ -16,6 +16,11 @@ Key features:
 - Translation settings (source/target language, provider, font/theme options).
 - RU/EN UI localization, onboarding/demo, and auto-update support.
 
+### Installation
+Download the latest installer from GitHub Releases:
+- https://github.com/AlexChuzha/UltScan/releases/latest
+
+
 ## Русский
 UltScan — это Windows-приложение, которое переводит текст с любой области экрана почти в реальном времени.
 
@@ -31,3 +36,7 @@ UltScan — это Windows-приложение, которое переводи
 - Настраиваемые положение, прозрачность и поведение оверлея.
 - Гибкие параметры перевода (язык источника/перевода, провайдер, шрифт и цветовая тема).
 - Локализация интерфейса (RU/EN), приветствие/демо и автообновления.
+
+### Установка
+Скачайте актуальный инсталлятор из GitHub Releases:
+- https://github.com/AlexChuzha/UltScan/releases/latest
