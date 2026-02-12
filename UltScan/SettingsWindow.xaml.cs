@@ -200,11 +200,6 @@ public partial class SettingsWindow : Window
             return false;
         }
 
-        if (!EnsureCloudTranslationReadyToApply())
-        {
-            return false;
-        }
-
         var config = item.Preset.ToConfig();
         if (!_app.TryApplyHotKey(config, showError: true))
         {
