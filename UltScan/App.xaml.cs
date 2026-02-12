@@ -337,6 +337,7 @@ namespace UltScan
                 (dx, dy) => MoveOverlayBy(dx, dy),
                 enabled => _overlayWindow?.SetTransparencyEnabled(enabled),
                 SetOverlayHighlight,
+                dragging => _overlayWindow?.SetPanelDragInProgress(dragging),
                 outputRect);
             _pinWindow.Closed += (_, __) => _pinWindow = null;
             _pinWindow.Show();

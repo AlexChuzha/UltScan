@@ -20,6 +20,7 @@ public partial class TextOverlayWindow : Window
     private const int ShortTextLimit = 10;
     private const double MinCaptureSize = 50;
     private const int VisibilityFadeDurationMs = 140;
+    private const int AutoHideSuspendAfterDragMs = 700;
     private Rect _captureRect;
     private System.Windows.Media.Brush _defaultBackground = System.Windows.Media.Brushes.Transparent;
     private System.Windows.Media.Brush _defaultOverlayBackground = System.Windows.Media.Brushes.Transparent;
@@ -60,6 +61,8 @@ public partial class TextOverlayWindow : Window
     private ContentVisibilityState _contentState = ContentVisibilityState.Full;
     private int _consecutiveEmptyFrames;
     private bool _pendingHideUseDormantFrame;
+    private bool _isPanelDragInProgress;
+    private DateTime _autoHideSuspendedUntilUtc = DateTime.MinValue;
     private readonly SolidColorBrush _dormantOuterBorderBrush = new(System.Windows.Media.Color.FromArgb(150, 255, 255, 255));
 
     public event EventHandler<Rect>? CaptureRectChanged;
@@ -162,6 +165,33 @@ public partial class TextOverlayWindow : Window
     {
         _transparencyEnabled = enabled;
         ApplyOverlayAppearance();
+    }
+
+    public void SetPanelDragInProgress(bool isDragging)
+    {
+        if (Dispatcher.CheckAccess())
+        {
+            SetPanelDragInProgressCore(isDragging);
+            return;
+        }
+
+        Dispatcher.Invoke(() => SetPanelDragInProgressCore(isDragging));
+    }
+
+    private void SetPanelDragInProgressCore(bool isDragging)
+    {
+        _isPanelDragInProgress = isDragging;
+        _autoHideSuspendedUntilUtc = DateTime.UtcNow.AddMilliseconds(AutoHideSuspendAfterDragMs);
+
+        if (!isDragging)
+        {
+            return;
+        }
+
+        StopNoTextHideTimer();
+        StopTextShowTimer();
+        _consecutiveEmptyFrames = 0;
+        SetContentVisibilityCore(ContentVisibilityState.Full);
     }
 
     public async Task ForceTranslateAsync()
@@ -1182,6 +1212,15 @@ public partial class TextOverlayWindow : Window
 
     private void UpdateVisibilityForRecognizedTextCore(App app, bool hasText)
     {
+        if (_isPanelDragInProgress || DateTime.UtcNow < _autoHideSuspendedUntilUtc)
+        {
+            StopNoTextHideTimer();
+            StopTextShowTimer();
+            _consecutiveEmptyFrames = 0;
+            SetContentVisibility(ContentVisibilityState.Full);
+            return;
+        }
+
         if (!app.Settings.Overlay.AutoHideWhenNoText)
         {
             StopNoTextHideTimer();
@@ -1281,6 +1320,11 @@ public partial class TextOverlayWindow : Window
     private void HideWhenNoTextTimer_Tick(object? sender, EventArgs e)
     {
         StopNoTextHideTimer();
+        if (_isPanelDragInProgress || DateTime.UtcNow < _autoHideSuspendedUntilUtc)
+        {
+            return;
+        }
+
         SetContentVisibilityCore(
             _pendingHideUseDormantFrame
                 ? ContentVisibilityState.Dormant

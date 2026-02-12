@@ -15,6 +15,7 @@ public partial class PinButtonWindow : Window
     private readonly Action<double, double> _onDragDelta;
     private readonly Action<bool> _onTransparencyChanged;
     private readonly Action<bool> _onHoverChanged;
+    private readonly Action<bool> _onDragStateChanged;
     private Rect? _avoidRect;
     private Rect _anchorRect;
 
@@ -26,6 +27,7 @@ public partial class PinButtonWindow : Window
         Action<double, double> onDragDelta,
         Action<bool> onTransparencyChanged,
         Action<bool> onHoverChanged,
+        Action<bool> onDragStateChanged,
         Rect? avoidRect)
     {
         InitializeComponent();
@@ -38,6 +40,7 @@ public partial class PinButtonWindow : Window
         _onDragDelta = onDragDelta;
         _onTransparencyChanged = onTransparencyChanged;
         _onHoverChanged = onHoverChanged;
+        _onDragStateChanged = onDragStateChanged;
         _anchorRect = anchorRect;
         _avoidRect = avoidRect;
 
@@ -198,9 +201,19 @@ public partial class PinButtonWindow : Window
         _onCopyTranslation();
     }
 
+    private void DragThumb_DragStarted(object sender, System.Windows.Controls.Primitives.DragStartedEventArgs e)
+    {
+        _onDragStateChanged(true);
+    }
+
     private void DragThumb_DragDelta(object sender, System.Windows.Controls.Primitives.DragDeltaEventArgs e)
     {
         _onDragDelta(e.HorizontalChange, e.VerticalChange);
+    }
+
+    private void DragThumb_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+    {
+        _onDragStateChanged(false);
     }
 
     private void TransparencyCheckBox_Checked(object sender, RoutedEventArgs e)

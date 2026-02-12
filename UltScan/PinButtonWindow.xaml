@@ -25,7 +25,9 @@
                    Margin="0,0,8,0"
                    Cursor="SizeAll"
                    ToolTipService.Placement="Top"
-                   DragDelta="DragThumb_DragDelta">
+                   DragStarted="DragThumb_DragStarted"
+                   DragDelta="DragThumb_DragDelta"
+                   DragCompleted="DragThumb_DragCompleted">
                 <Thumb.Template>
                     <ControlTemplate TargetType="Thumb">
                         <Border x:Name="Root"
