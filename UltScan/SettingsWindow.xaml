@@ -297,6 +297,10 @@
                                           MinWidth="240"
                                           SelectionChanged="TranslationProvider_SelectionChanged"
                                           DisplayMemberPath="DisplayName"/>
+                                <TextBlock x:Name="TranslationProviderHint"
+                                           Margin="0,6,0,0"
+                                           TextWrapping="Wrap"
+                                           Foreground="#555"/>
 
                                 <TextBlock x:Name="TranslationProjectLabel"
                                            Margin="0,12,0,4"

@@ -1,8 +1,13 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 
@@ -11,9 +16,14 @@ namespace UltScan;
 public static class TranslationService
 {
     private static readonly HttpClient Client = new();
+    private static readonly object OAuthSync = new();
+    private static string? _cachedOAuthAccessToken;
+    private static DateTime _cachedOAuthAccessTokenExpiresUtc = DateTime.MinValue;
 
     public static string ApiKeyEnvName => "ULTSCAN_GOOGLE_TRANSLATE_API_KEY";
+    public static string GoogleApplicationCredentialsEnvName => "GOOGLE_APPLICATION_CREDENTIALS";
     public const string ProviderApi = "api";
+    public const string ProviderApiV3OAuth = "api_v3_oauth";
     public const string ProviderWeb = "web";
     public const string ProviderWebSiteExperimental = "web_site_experimental";
 
@@ -33,6 +43,11 @@ public static class TranslationService
         if (string.Equals(provider, ProviderWeb, StringComparison.OrdinalIgnoreCase))
         {
             return await TranslateViaWebAsync(text, sourceLanguage, targetLanguage).ConfigureAwait(false);
+        }
+
+        if (string.Equals(provider, ProviderApiV3OAuth, StringComparison.OrdinalIgnoreCase))
+        {
+            return await TranslateViaApiV3OAuthAsync(text, sourceLanguage, targetLanguage, projectId).ConfigureAwait(false);
         }
 
         return await TranslateViaApiAsync(text, sourceLanguage, targetLanguage, projectId, apiKeyOverride).ConfigureAwait(false);
@@ -62,6 +77,61 @@ public static class TranslationService
         return await TranslateViaWebAsync(text, sl, tl).ConfigureAwait(false);
     }
 
+    private static async Task<string?> TranslateViaApiV3OAuthAsync(
+        string text,
+        string sourceLanguage,
+        string targetLanguage,
+        string projectId)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        if (string.IsNullOrWhiteSpace(targetLanguage) || string.IsNullOrWhiteSpace(projectId))
+        {
+            return null;
+        }
+
+        var token = await GetOAuthAccessTokenAsync().ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return null;
+        }
+
+        var normalizedTargetLanguage = NormalizeLanguageCode(targetLanguage);
+        var normalizedSourceLanguage = string.IsNullOrWhiteSpace(sourceLanguage) ? "auto" : sourceLanguage.Trim();
+        var url = $"https://translation.googleapis.com/v3/projects/{Uri.EscapeDataString(projectId)}/locations/global:translateText";
+        var request = new TranslateV3Request
+        {
+            Contents = new[] { text },
+            MimeType = "text/plain",
+            SourceLanguageCode = string.Equals(normalizedSourceLanguage, "auto", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : normalizedSourceLanguage,
+            TargetLanguageCode = normalizedTargetLanguage
+        };
+
+        var json = JsonSerializer.Serialize(request, JsonOptions.Default);
+        using var message = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var response = await Client.SendAsync(message).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        var result = JsonSerializer.Deserialize<TranslateV3Response>(responseJson, JsonOptions.Default);
+        return result?.Translations != null && result.Translations.Length > 0
+            ? result.Translations[0].TranslatedText
+            : null;
+    }
+
     private static async Task<string?> TranslateViaApiAsync(
         string text,
         string sourceLanguage,
@@ -74,7 +144,7 @@ public static class TranslationService
             return string.Empty;
         }
 
-        if (string.IsNullOrWhiteSpace(targetLanguage) || string.IsNullOrWhiteSpace(projectId))
+        if (string.IsNullOrWhiteSpace(targetLanguage))
         {
             return null;
         }
@@ -87,14 +157,18 @@ public static class TranslationService
             return null;
         }
 
-        var url = $"https://translation.googleapis.com/v3/projects/{Uri.EscapeDataString(projectId)}/locations/global:translateText?key={Uri.EscapeDataString(apiKey)}";
+        var normalizedTargetLanguage = NormalizeLanguageCode(targetLanguage);
+        var normalizedSourceLanguage = string.IsNullOrWhiteSpace(sourceLanguage) ? "auto" : sourceLanguage.Trim();
+        var url = $"https://translation.googleapis.com/language/translate/v2?key={Uri.EscapeDataString(apiKey)}";
 
-        var request = new TranslateRequest
+        var request = new TranslateV2Request
         {
-            Contents = new[] { text },
-            MimeType = "text/plain",
-            SourceLanguageCode = string.Equals(sourceLanguage, "auto", StringComparison.OrdinalIgnoreCase) ? null : sourceLanguage,
-            TargetLanguageCode = targetLanguage
+            Q = text,
+            Target = normalizedTargetLanguage,
+            Source = string.Equals(normalizedSourceLanguage, "auto", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : normalizedSourceLanguage,
+            Format = "text"
         };
 
         var json = JsonSerializer.Serialize(request, JsonOptions.Default);
@@ -107,10 +181,11 @@ public static class TranslationService
         }
 
         var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-        var result = JsonSerializer.Deserialize<TranslateResponse>(responseJson, JsonOptions.Default);
-        return result?.Translations != null && result.Translations.Length > 0
-            ? result.Translations[0].TranslatedText
+        var result = JsonSerializer.Deserialize<TranslateV2ResponseEnvelope>(responseJson, JsonOptions.Default);
+        var translated = result?.Data?.Translations != null && result.Data.Translations.Length > 0
+            ? result.Data.Translations[0].TranslatedText
             : null;
+        return translated == null ? null : WebUtility.HtmlDecode(translated);
     }
 
     private static async Task<string?> TranslateViaWebAsync(string text, string sourceLanguage, string targetLanguage)
@@ -244,15 +319,153 @@ public static class TranslationService
         return code;
     }
 
-    private sealed class TranslateRequest
+    private static async Task<string?> GetOAuthAccessTokenAsync()
+    {
+        lock (OAuthSync)
+        {
+            if (!string.IsNullOrWhiteSpace(_cachedOAuthAccessToken) &&
+                DateTime.UtcNow < _cachedOAuthAccessTokenExpiresUtc.AddSeconds(-60))
+            {
+                return _cachedOAuthAccessToken;
+            }
+        }
+
+        var credentialsPath = Environment.GetEnvironmentVariable(GoogleApplicationCredentialsEnvName);
+        if (string.IsNullOrWhiteSpace(credentialsPath) || !File.Exists(credentialsPath))
+        {
+            return null;
+        }
+
+        ServiceAccountCredentials? credentials;
+        try
+        {
+            var json = await File.ReadAllTextAsync(credentialsPath).ConfigureAwait(false);
+            credentials = JsonSerializer.Deserialize<ServiceAccountCredentials>(json, JsonOptions.Default);
+        }
+        catch
+        {
+            return null;
+        }
+
+        if (credentials == null ||
+            string.IsNullOrWhiteSpace(credentials.ClientEmail) ||
+            string.IsNullOrWhiteSpace(credentials.PrivateKey))
+        {
+            return null;
+        }
+
+        var tokenUri = string.IsNullOrWhiteSpace(credentials.TokenUri)
+            ? "https://oauth2.googleapis.com/token"
+            : credentials.TokenUri;
+
+        string jwt;
+        try
+        {
+            jwt = BuildServiceAccountJwt(credentials.ClientEmail, credentials.PrivateKey, tokenUri);
+        }
+        catch
+        {
+            return null;
+        }
+
+        var form = new Dictionary<string, string>
+        {
+            ["grant_type"] = "urn:ietf:params:oauth:grant-type:jwt-bearer",
+            ["assertion"] = jwt
+        };
+
+        using var content = new FormUrlEncodedContent(form);
+        using var response = await Client.PostAsync(tokenUri, content).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var responseJson = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        OAuthTokenResponse? token;
+        try
+        {
+            token = JsonSerializer.Deserialize<OAuthTokenResponse>(responseJson, JsonOptions.Default);
+        }
+        catch
+        {
+            return null;
+        }
+
+        if (token == null || string.IsNullOrWhiteSpace(token.AccessToken))
+        {
+            return null;
+        }
+
+        var expiresIn = token.ExpiresIn > 0 ? token.ExpiresIn : 3600;
+        lock (OAuthSync)
+        {
+            _cachedOAuthAccessToken = token.AccessToken;
+            _cachedOAuthAccessTokenExpiresUtc = DateTime.UtcNow.AddSeconds(expiresIn);
+            return _cachedOAuthAccessToken;
+        }
+    }
+
+    private static string BuildServiceAccountJwt(string clientEmail, string privateKeyPem, string audience)
+    {
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var headerJson = "{\"alg\":\"RS256\",\"typ\":\"JWT\"}";
+        var claimsJson =
+            "{\"iss\":\"" + JsonEncodedText.Encode(clientEmail).ToString() + "\"," +
+            "\"scope\":\"https://www.googleapis.com/auth/cloud-translation\"," +
+            "\"aud\":\"" + JsonEncodedText.Encode(audience).ToString() + "\"," +
+            "\"iat\":" + now.ToString(System.Globalization.CultureInfo.InvariantCulture) + "," +
+            "\"exp\":" + (now + 3600).ToString(System.Globalization.CultureInfo.InvariantCulture) + "}";
+
+        var header = Base64UrlEncode(Encoding.UTF8.GetBytes(headerJson));
+        var payload = Base64UrlEncode(Encoding.UTF8.GetBytes(claimsJson));
+        var unsignedToken = $"{header}.{payload}";
+
+        using var rsa = RSA.Create();
+        rsa.ImportFromPem(privateKeyPem.AsSpan());
+        var signatureBytes = rsa.SignData(
+            Encoding.UTF8.GetBytes(unsignedToken),
+            HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1);
+
+        return $"{unsignedToken}.{Base64UrlEncode(signatureBytes)}";
+    }
+
+    private static string Base64UrlEncode(byte[] bytes)
+    {
+        return Convert.ToBase64String(bytes)
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+    }
+
+    private sealed class TranslateV2Request
+    {
+        public string Q { get; set; } = string.Empty;
+        public string? Source { get; set; }
+        public string Target { get; set; } = string.Empty;
+        public string Format { get; set; } = "text";
+    }
+
+    private sealed class TranslateV2ResponseEnvelope
+    {
+        public TranslateV2Data? Data { get; set; }
+    }
+
+    private sealed class TranslateV2Data
+    {
+        public TranslationItem[]? Translations { get; set; }
+    }
+
+    private sealed class TranslateV3Request
     {
         public string[] Contents { get; set; } = Array.Empty<string>();
         public string? SourceLanguageCode { get; set; }
         public string TargetLanguageCode { get; set; } = string.Empty;
-        public string? MimeType { get; set; }
+        public string MimeType { get; set; } = "text/plain";
     }
 
-    private sealed class TranslateResponse
+    private sealed class TranslateV3Response
     {
         public TranslationItem[]? Translations { get; set; }
     }
@@ -260,6 +473,27 @@ public static class TranslationService
     private sealed class TranslationItem
     {
         public string TranslatedText { get; set; } = string.Empty;
+    }
+
+    private sealed class ServiceAccountCredentials
+    {
+        [JsonPropertyName("client_email")]
+        public string? ClientEmail { get; set; }
+
+        [JsonPropertyName("private_key")]
+        public string? PrivateKey { get; set; }
+
+        [JsonPropertyName("token_uri")]
+        public string? TokenUri { get; set; }
+    }
+
+    private sealed class OAuthTokenResponse
+    {
+        [JsonPropertyName("access_token")]
+        public string? AccessToken { get; set; }
+
+        [JsonPropertyName("expires_in")]
+        public int ExpiresIn { get; set; }
     }
 
     private static class JsonOptions

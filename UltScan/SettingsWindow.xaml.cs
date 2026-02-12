@@ -56,6 +56,7 @@ public partial class SettingsWindow : Window
         _providerOptions = new[]
         {
             new ProviderOption(TranslationService.ProviderApi, "Settings.TranslationProviderApi"),
+            new ProviderOption(TranslationService.ProviderApiV3OAuth, "Settings.TranslationProviderApiV3OAuth"),
             new ProviderOption(TranslationService.ProviderWeb, "Settings.TranslationProviderWeb"),
             new ProviderOption(TranslationService.ProviderWebSiteExperimental, "Settings.TranslationProviderWebSiteExperimental")
         };
@@ -419,6 +420,7 @@ public partial class SettingsWindow : Window
         }
 
         _pendingSettings.Translation.Provider = option.Id;
+        UpdateTranslationProviderHint();
         UpdateTranslationWarnings();
         UpdateTranslationApiFields();
         MarkDirty();
@@ -670,12 +672,11 @@ public partial class SettingsWindow : Window
         TranslationProjectLabel.Text = _loc["Settings.TranslationProject"];
         TranslationApiKeyLabel.Text = _loc["Settings.TranslationApiKeyLabel"];
         TranslationProviderLabel.Text = _loc["Settings.TranslationProvider"];
-        TranslationApiKeyWarning.Text = string.Format(
-            _loc["Settings.TranslationApiKeyWarning"],
-            TranslationService.ApiKeyEnvName);
         TranslationUnofficialWarning.Text = _loc["Settings.TranslationProviderWebSiteExperimentalWarning"];
         TranslationLanguageHeaderText.Text = _loc["Settings.TranslationLanguagesHeader"];
         TranslationConnectionHeaderText.Text = _loc["Settings.TranslationConnectionHeader"];
+        UpdateTranslationProviderHint();
+        UpdateTranslationWarnings();
         ExperimentalHeaderText.Text = _loc["Settings.ExperimentalHeader"];
         OverlayHeaderText.Text = _loc["Settings.OverlayHeader"];
         OverlayOrientationLabel.Text = _loc["Settings.OverlayOrientation"];
@@ -874,6 +875,7 @@ public partial class SettingsWindow : Window
             .Cast<ProviderOption>()
             .FirstOrDefault(p => p.Id == _pendingSettings.Translation.Provider)
             ?? TranslationProviderCombo.ItemsSource.Cast<ProviderOption>().FirstOrDefault();
+        UpdateTranslationProviderHint();
 
         MoreLanguagesButton.Content = _showAllLanguages
             ? _loc["Settings.LanguagesLess"]
@@ -1040,20 +1042,60 @@ public partial class SettingsWindow : Window
 
     private void UpdateTranslationWarnings()
     {
-        var isApi = string.Equals(_pendingSettings.Translation.Provider, TranslationService.ProviderApi, StringComparison.OrdinalIgnoreCase);
+        var isApiV2 = string.Equals(_pendingSettings.Translation.Provider, TranslationService.ProviderApi, StringComparison.OrdinalIgnoreCase);
+        var isApiV3OAuth = string.Equals(_pendingSettings.Translation.Provider, TranslationService.ProviderApiV3OAuth, StringComparison.OrdinalIgnoreCase);
         var isWebSiteExperimental = string.Equals(
             _pendingSettings.Translation.Provider,
             TranslationService.ProviderWebSiteExperimental,
             StringComparison.OrdinalIgnoreCase);
-        var keyMissing = string.IsNullOrWhiteSpace(_pendingSettings.Translation.ApiKey)
+        var keyMissingV2 = string.IsNullOrWhiteSpace(_pendingSettings.Translation.ApiKey)
             && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(TranslationService.ApiKeyEnvName));
-        var projectMissing = string.IsNullOrWhiteSpace(_pendingSettings.Translation.ProjectId);
-        var showWarning = _pendingSettings.Translation.Enabled && isApi && (keyMissing || projectMissing);
+        var projectMissingV3 = string.IsNullOrWhiteSpace(_pendingSettings.Translation.ProjectId);
+        var credentialsPath = Environment.GetEnvironmentVariable(TranslationService.GoogleApplicationCredentialsEnvName);
+        var credentialsMissingV3 = string.IsNullOrWhiteSpace(credentialsPath) || !File.Exists(credentialsPath);
 
+        var warningText = string.Empty;
+        var showWarning = false;
+        if (_pendingSettings.Translation.Enabled && isApiV2 && keyMissingV2)
+        {
+            warningText = string.Format(
+                _loc["Settings.TranslationApiKeyWarning"],
+                TranslationService.ApiKeyEnvName);
+            showWarning = true;
+        }
+        else if (_pendingSettings.Translation.Enabled && isApiV3OAuth && (projectMissingV3 || credentialsMissingV3))
+        {
+            warningText = string.Format(
+                _loc["Settings.TranslationOAuthWarning"],
+                TranslationService.GoogleApplicationCredentialsEnvName);
+            showWarning = true;
+        }
+
+        TranslationApiKeyWarning.Text = warningText;
         TranslationApiKeyWarning.Visibility = showWarning ? Visibility.Visible : Visibility.Collapsed;
         TranslationUnofficialWarning.Visibility = _pendingSettings.Translation.Enabled && isWebSiteExperimental
             ? Visibility.Visible
             : Visibility.Collapsed;
+    }
+
+    private void UpdateTranslationProviderHint()
+    {
+        var key = _pendingSettings.Translation.Provider switch
+        {
+            TranslationService.ProviderApi => "Settings.TranslationProviderHintApi",
+            TranslationService.ProviderApiV3OAuth => "Settings.TranslationProviderHintApiV3OAuth",
+            TranslationService.ProviderWeb => "Settings.TranslationProviderHintWeb",
+            TranslationService.ProviderWebSiteExperimental => "Settings.TranslationProviderHintWebSiteExperimental",
+            _ => string.Empty
+        };
+
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            TranslationProviderHint.Text = string.Empty;
+            return;
+        }
+
+        TranslationProviderHint.Text = _loc[key];
     }
 
     private void RebuildOverlayOptions()
@@ -1148,11 +1190,12 @@ public partial class SettingsWindow : Window
 
     private void UpdateTranslationApiFields()
     {
-        var isApi = string.Equals(_pendingSettings.Translation.Provider, TranslationService.ProviderApi, StringComparison.OrdinalIgnoreCase);
-        TranslationProjectLabel.IsEnabled = isApi;
-        TranslationProjectTextBox.IsEnabled = isApi;
-        TranslationApiKeyLabel.IsEnabled = isApi;
-        TranslationApiKeyTextBox.IsEnabled = isApi;
+        var isApiV2 = string.Equals(_pendingSettings.Translation.Provider, TranslationService.ProviderApi, StringComparison.OrdinalIgnoreCase);
+        var isApiV3OAuth = string.Equals(_pendingSettings.Translation.Provider, TranslationService.ProviderApiV3OAuth, StringComparison.OrdinalIgnoreCase);
+        TranslationProjectLabel.IsEnabled = isApiV3OAuth;
+        TranslationProjectTextBox.IsEnabled = isApiV3OAuth;
+        TranslationApiKeyLabel.IsEnabled = isApiV2;
+        TranslationApiKeyTextBox.IsEnabled = isApiV2;
     }
 
     private void UpdateAlternateThemeControlsState()
