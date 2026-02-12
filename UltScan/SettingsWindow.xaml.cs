@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Principal;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -32,6 +33,9 @@ public partial class SettingsWindow : Window
     private bool _suppressFontChange;
     private bool _showAllLanguages;
     private bool _isCheckingUpdates;
+    private bool _isCheckingTranslationConnection;
+    private string? _lastTranslationCheckProviderId;
+    private bool _lastTranslationCheckSuccess;
     private readonly ProviderOption[] _providerOptions;
     private readonly OverlayOption[] _overlayOptions;
     private readonly ModeOption[] _modeOptions;
@@ -196,6 +200,11 @@ public partial class SettingsWindow : Window
             return false;
         }
 
+        if (!EnsureCloudTranslationReadyToApply())
+        {
+            return false;
+        }
+
         var config = item.Preset.ToConfig();
         if (!_app.TryApplyHotKey(config, showError: true))
         {
@@ -207,6 +216,33 @@ public partial class SettingsWindow : Window
         _originalSettings = CloneSettings(_pendingSettings);
         _hasUnsavedChanges = false;
         ApplyButton.IsEnabled = false;
+        return true;
+    }
+
+    private bool RunTranslationSetupWizard()
+    {
+        var wizard = new TranslationSetupWizardWindow(_pendingSettings);
+        wizard.Owner = this;
+        var result = wizard.ShowDialog();
+        if (result != true)
+        {
+            return false;
+        }
+
+        _pendingSettings = wizard.ResultSettings;
+        var provider = _pendingSettings.Translation.Provider;
+        if (IsCloudProvider(provider))
+        {
+            _lastTranslationCheckProviderId = provider;
+            _lastTranslationCheckSuccess = true;
+        }
+        else
+        {
+            InvalidateTranslationCheckState();
+        }
+
+        ApplyPendingSettingsToUi();
+        MarkDirty();
         return true;
     }
 
@@ -389,16 +425,69 @@ public partial class SettingsWindow : Window
 
     private void TranslationProject_Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
     {
+        if (_suppressTranslationChange)
+        {
+            return;
+        }
+
         _pendingSettings.Translation.ProjectId = TranslationProjectTextBox.Text.Trim();
+        InvalidateTranslationCheckState();
         UpdateTranslationWarnings();
         MarkDirty();
     }
 
     private void TranslationApiKey_Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
     {
+        if (_suppressTranslationChange)
+        {
+            return;
+        }
+
         _pendingSettings.Translation.ApiKey = TranslationApiKeyTextBox.Text.Trim();
+        InvalidateTranslationCheckState();
         UpdateTranslationWarnings();
         MarkDirty();
+    }
+
+    private void TranslationServiceAccountPath_Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (_suppressTranslationChange)
+        {
+            return;
+        }
+
+        _pendingSettings.Translation.ServiceAccountJsonPath = TranslationServiceAccountPathTextBox.Text.Trim();
+        InvalidateTranslationCheckState();
+        UpdateTranslationWarnings();
+        MarkDirty();
+    }
+
+    private void TranslationBrowseServiceAccount_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
+            CheckFileExists = true,
+            CheckPathExists = true
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        TranslationServiceAccountPathTextBox.Text = dialog.FileName;
+        TryFillProjectIdFromServiceAccount(dialog.FileName);
+    }
+
+    private async void TranslationCheckConnection_Click(object sender, RoutedEventArgs e)
+    {
+        await RunTranslationConnectionDiagnosticsAsync();
+    }
+
+    private void TranslationSetupWizard_Click(object sender, RoutedEventArgs e)
+    {
+        RunTranslationSetupWizard();
     }
 
     private void MoreLanguages_Click(object sender, RoutedEventArgs e)
@@ -420,6 +509,7 @@ public partial class SettingsWindow : Window
         }
 
         _pendingSettings.Translation.Provider = option.Id;
+        InvalidateTranslationCheckState();
         UpdateTranslationProviderHint();
         UpdateTranslationWarnings();
         UpdateTranslationApiFields();
@@ -671,6 +761,10 @@ public partial class SettingsWindow : Window
         TranslationTargetLabel.Text = _loc["Settings.TranslationTarget"];
         TranslationProjectLabel.Text = _loc["Settings.TranslationProject"];
         TranslationApiKeyLabel.Text = _loc["Settings.TranslationApiKeyLabel"];
+        TranslationServiceAccountPathLabel.Text = _loc["Settings.TranslationServiceAccountPath"];
+        TranslationBrowseServiceAccountButton.Content = _loc["Settings.TranslationBrowseServiceAccount"];
+        TranslationSetupWizardButton.Content = _loc["Settings.TranslationSetupWizard"];
+        TranslationCheckConnectionButton.Content = _loc["Settings.TranslationCheckConnection"];
         TranslationProviderLabel.Text = _loc["Settings.TranslationProvider"];
         TranslationUnofficialWarning.Text = _loc["Settings.TranslationProviderWebSiteExperimentalWarning"];
         TranslationLanguageHeaderText.Text = _loc["Settings.TranslationLanguagesHeader"];
@@ -781,8 +875,13 @@ public partial class SettingsWindow : Window
         RebuildFontSizeOptions();
         _suppressAppearanceChange = false;
         RebuildTranslationModes();
+        _suppressTranslationChange = true;
         TranslationProjectTextBox.Text = _pendingSettings.Translation.ProjectId;
         TranslationApiKeyTextBox.Text = _pendingSettings.Translation.ApiKey;
+        TranslationServiceAccountPathTextBox.Text = _pendingSettings.Translation.ServiceAccountJsonPath;
+        _suppressTranslationChange = false;
+        TranslationConnectionResultText.Text = string.Empty;
+        TranslationConnectionResultText.Visibility = Visibility.Collapsed;
         UpdateExperimentalWarning();
         UpdateTranslationWarnings();
         UpdateTranslationApiFields();
@@ -1042,37 +1141,12 @@ public partial class SettingsWindow : Window
 
     private void UpdateTranslationWarnings()
     {
-        var isApiV2 = string.Equals(_pendingSettings.Translation.Provider, TranslationService.ProviderApi, StringComparison.OrdinalIgnoreCase);
-        var isApiV3OAuth = string.Equals(_pendingSettings.Translation.Provider, TranslationService.ProviderApiV3OAuth, StringComparison.OrdinalIgnoreCase);
         var isWebSiteExperimental = string.Equals(
             _pendingSettings.Translation.Provider,
             TranslationService.ProviderWebSiteExperimental,
             StringComparison.OrdinalIgnoreCase);
-        var keyMissingV2 = string.IsNullOrWhiteSpace(_pendingSettings.Translation.ApiKey)
-            && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(TranslationService.ApiKeyEnvName));
-        var projectMissingV3 = string.IsNullOrWhiteSpace(_pendingSettings.Translation.ProjectId);
-        var credentialsPath = Environment.GetEnvironmentVariable(TranslationService.GoogleApplicationCredentialsEnvName);
-        var credentialsMissingV3 = string.IsNullOrWhiteSpace(credentialsPath) || !File.Exists(credentialsPath);
-
-        var warningText = string.Empty;
-        var showWarning = false;
-        if (_pendingSettings.Translation.Enabled && isApiV2 && keyMissingV2)
-        {
-            warningText = string.Format(
-                _loc["Settings.TranslationApiKeyWarning"],
-                TranslationService.ApiKeyEnvName);
-            showWarning = true;
-        }
-        else if (_pendingSettings.Translation.Enabled && isApiV3OAuth && (projectMissingV3 || credentialsMissingV3))
-        {
-            warningText = string.Format(
-                _loc["Settings.TranslationOAuthWarning"],
-                TranslationService.GoogleApplicationCredentialsEnvName);
-            showWarning = true;
-        }
-
-        TranslationApiKeyWarning.Text = warningText;
-        TranslationApiKeyWarning.Visibility = showWarning ? Visibility.Visible : Visibility.Collapsed;
+        TranslationApiKeyWarning.Text = string.Empty;
+        TranslationApiKeyWarning.Visibility = Visibility.Collapsed;
         TranslationUnofficialWarning.Visibility = _pendingSettings.Translation.Enabled && isWebSiteExperimental
             ? Visibility.Visible
             : Visibility.Collapsed;
@@ -1194,8 +1268,89 @@ public partial class SettingsWindow : Window
         var isApiV3OAuth = string.Equals(_pendingSettings.Translation.Provider, TranslationService.ProviderApiV3OAuth, StringComparison.OrdinalIgnoreCase);
         TranslationProjectLabel.IsEnabled = isApiV3OAuth;
         TranslationProjectTextBox.IsEnabled = isApiV3OAuth;
+        TranslationServiceAccountPathLabel.IsEnabled = isApiV3OAuth;
+        TranslationServiceAccountPathTextBox.IsEnabled = isApiV3OAuth;
+        TranslationBrowseServiceAccountButton.IsEnabled = isApiV3OAuth;
         TranslationApiKeyLabel.IsEnabled = isApiV2;
         TranslationApiKeyTextBox.IsEnabled = isApiV2;
+        TranslationCheckConnectionButton.IsEnabled = !_isCheckingTranslationConnection;
+        TranslationSetupWizardButton.IsEnabled = !_isCheckingTranslationConnection;
+    }
+
+    private bool EnsureCloudTranslationReadyToApply()
+    {
+        if (!_pendingSettings.Translation.Enabled)
+        {
+            return true;
+        }
+
+        if (!IsCloudProvider(_pendingSettings.Translation.Provider))
+        {
+            return true;
+        }
+
+        if (IsLastCheckSuccessfulForCurrentProvider())
+        {
+            return true;
+        }
+
+        var message = _loc["Wizard.RequireSuccessfulCheck"];
+        var result = System.Windows.MessageBox.Show(
+            message,
+            _loc["Message.Title"],
+            MessageBoxButton.OKCancel,
+            MessageBoxImage.Warning);
+        if (result != MessageBoxResult.OK)
+        {
+            return false;
+        }
+
+        return RunTranslationSetupWizard();
+    }
+
+    private bool IsCloudProvider(string provider)
+    {
+        return string.Equals(provider, TranslationService.ProviderApi, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(provider, TranslationService.ProviderApiV3OAuth, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool HasRequiredTranslationConnectionData(string provider)
+    {
+        if (string.Equals(provider, TranslationService.ProviderApi, StringComparison.OrdinalIgnoreCase))
+        {
+            return !string.IsNullOrWhiteSpace(TranslationService.GetConfiguredApiKey(_pendingSettings.Translation.ApiKey));
+        }
+
+        if (string.Equals(provider, TranslationService.ProviderApiV3OAuth, StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(_pendingSettings.Translation.ProjectId))
+            {
+                return false;
+            }
+
+            var credentialsPath = TranslationService.GetConfiguredServiceAccountPath(_pendingSettings.Translation.ServiceAccountJsonPath);
+            return !string.IsNullOrWhiteSpace(credentialsPath) && File.Exists(credentialsPath);
+        }
+
+        return true;
+    }
+
+    private bool IsLastCheckSuccessfulForCurrentProvider()
+    {
+        return _lastTranslationCheckSuccess &&
+               string.Equals(_lastTranslationCheckProviderId, _pendingSettings.Translation.Provider, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void InvalidateTranslationCheckState()
+    {
+        _lastTranslationCheckProviderId = null;
+        _lastTranslationCheckSuccess = false;
+
+        if (TranslationConnectionResultText != null)
+        {
+            TranslationConnectionResultText.Visibility = Visibility.Collapsed;
+            TranslationConnectionResultText.Text = string.Empty;
+        }
     }
 
     private void UpdateAlternateThemeControlsState()
@@ -1304,8 +1459,105 @@ public partial class SettingsWindow : Window
             PollIntervalMs = source.Translation.PollIntervalMs,
             ProjectId = source.Translation.ProjectId,
             ApiKey = source.Translation.ApiKey,
+            ServiceAccountJsonPath = source.Translation.ServiceAccountJsonPath,
             Provider = source.Translation.Provider
         };
+    }
+
+    private void TryFillProjectIdFromServiceAccount(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return;
+        }
+
+        try
+        {
+            var json = File.ReadAllText(path);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("project_id", out var projectId) ||
+                projectId.ValueKind != System.Text.Json.JsonValueKind.String)
+            {
+                return;
+            }
+
+            var value = projectId.GetString();
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            TranslationProjectTextBox.Text = value.Trim();
+        }
+        catch
+        {
+            // Ignore malformed files here; diagnostics will report it explicitly.
+        }
+    }
+
+    private async Task RunTranslationConnectionDiagnosticsAsync()
+    {
+        if (_isCheckingTranslationConnection)
+        {
+            return;
+        }
+
+        _isCheckingTranslationConnection = true;
+        TranslationCheckConnectionButton.IsEnabled = false;
+        TranslationCheckConnectionButton.Content = _loc["Settings.TranslationCheckConnectionInProgress"];
+        TranslationConnectionResultText.Visibility = Visibility.Collapsed;
+        TranslationConnectionResultText.Text = string.Empty;
+
+        try
+        {
+            var result = await TranslationConnectionDiagnostics.RunAsync(_pendingSettings.Translation);
+            _lastTranslationCheckProviderId = _pendingSettings.Translation.Provider;
+            _lastTranslationCheckSuccess = result.IsSuccess;
+            var lines = result.Checks
+                .Select(c =>
+                {
+                    var status = c.Ok ? "OK" : "FAIL";
+                    var message = _loc[c.MessageKey];
+                    if (string.IsNullOrWhiteSpace(c.Details))
+                    {
+                        return $"[{status}] {message}";
+                    }
+
+                    return $"[{status}] {message}: {c.Details}";
+                })
+                .ToList();
+
+            var summaryKey = result.IsSuccess
+                ? "Settings.TranslationCheckConnectionSuccess"
+                : "Settings.TranslationCheckConnectionFailed";
+            lines.Insert(0, _loc[summaryKey]);
+
+            TranslationConnectionResultText.Text = string.Join(Environment.NewLine, lines);
+            TranslationConnectionResultText.Foreground = result.IsSuccess
+                ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 125, 50))
+                : new SolidColorBrush(System.Windows.Media.Color.FromRgb(176, 0, 32));
+            TranslationConnectionResultText.Visibility = Visibility.Visible;
+        }
+        finally
+        {
+            _isCheckingTranslationConnection = false;
+            TranslationCheckConnectionButton.Content = _loc["Settings.TranslationCheckConnection"];
+            TranslationCheckConnectionButton.IsEnabled = true;
+            UpdateTranslationApiFields();
+        }
+    }
+
+    private void ApplyPendingSettingsToUi()
+    {
+        _suppressDirty = true;
+        try
+        {
+            RefreshLocalization();
+        }
+        finally
+        {
+            _suppressDirty = false;
+        }
     }
 
     private void SettingsWindow_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)

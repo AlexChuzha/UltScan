@@ -102,6 +102,7 @@ public sealed class TranslationSettings
     public int PollIntervalMs { get; set; } = 500;
     public string ProjectId { get; set; } = string.Empty;
     public string ApiKey { get; set; } = string.Empty;
+    public string ServiceAccountJsonPath { get; set; } = string.Empty;
     public string Provider { get; set; } = TranslationService.ProviderWeb;
 }
 

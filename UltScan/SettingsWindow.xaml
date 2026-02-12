@@ -297,31 +297,56 @@
                                           MinWidth="240"
                                           SelectionChanged="TranslationProvider_SelectionChanged"
                                           DisplayMemberPath="DisplayName"/>
+                                <StackPanel Orientation="Horizontal"
+                                            Margin="0,10,0,0">
+                                    <Button x:Name="TranslationSetupWizardButton"
+                                            MinWidth="170"
+                                            Click="TranslationSetupWizard_Click"/>
+                                    <Button x:Name="TranslationCheckConnectionButton"
+                                            Margin="8,0,0,0"
+                                            MinWidth="170"
+                                            Click="TranslationCheckConnection_Click"/>
+                                </StackPanel>
+
                                 <TextBlock x:Name="TranslationProviderHint"
-                                           Margin="0,6,0,0"
-                                           TextWrapping="Wrap"
-                                           Foreground="#555"/>
+                                           Visibility="Collapsed"/>
 
                                 <TextBlock x:Name="TranslationProjectLabel"
-                                           Margin="0,12,0,4"
-                                           FontWeight="SemiBold"/>
+                                           Visibility="Collapsed"/>
 
                                 <TextBox x:Name="TranslationProjectTextBox"
-                                         MinWidth="240"
+                                         Visibility="Collapsed"
                                          TextChanged="TranslationProject_Changed"/>
 
                                 <TextBlock x:Name="TranslationApiKeyLabel"
-                                           Margin="0,12,0,4"
-                                           FontWeight="SemiBold"/>
+                                           Visibility="Collapsed"/>
 
                                 <TextBox x:Name="TranslationApiKeyTextBox"
-                                         MinWidth="240"
+                                         Visibility="Collapsed"
                                          TextChanged="TranslationApiKey_Changed"/>
 
+                                <TextBlock x:Name="TranslationServiceAccountPathLabel"
+                                           Visibility="Collapsed"/>
+
+                                <Grid Visibility="Collapsed">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="TranslationServiceAccountPathTextBox"
+                                             MinWidth="240"
+                                             TextChanged="TranslationServiceAccountPath_Changed"/>
+                                    <Button x:Name="TranslationBrowseServiceAccountButton"
+                                            Grid.Column="1"
+                                            Margin="8,0,0,0"
+                                            MinWidth="110"
+                                            Click="TranslationBrowseServiceAccount_Click"/>
+                                </Grid>
+
                                 <TextBlock x:Name="TranslationApiKeyWarning"
-                                           Margin="0,8,0,0"
-                                           TextWrapping="Wrap"
-                                           Foreground="#B00020"
+                                           Visibility="Collapsed"/>
+
+                                <TextBlock x:Name="TranslationConnectionResultText"
                                            Visibility="Collapsed"/>
 
                                 <TextBlock x:Name="TranslationUnofficialWarning"
