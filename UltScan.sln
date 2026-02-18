@@ -5,6 +5,8 @@ VisualStudioVersion = 17.14.36915.13 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UltScan", "UltScan\UltScan.csproj", "{98CE99EE-B8EF-49B6-84FE-0AA0D93B6818}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UltScan.Tests", "UltScan.Tests\UltScan.Tests.csproj", "{AAB2D32F-9F53-4A9F-BCC2-83BC2B8F412A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{98CE99EE-B8EF-49B6-84FE-0AA0D93B6818}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{98CE99EE-B8EF-49B6-84FE-0AA0D93B6818}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{98CE99EE-B8EF-49B6-84FE-0AA0D93B6818}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AAB2D32F-9F53-4A9F-BCC2-83BC2B8F412A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AAB2D32F-9F53-4A9F-BCC2-83BC2B8F412A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AAB2D32F-9F53-4A9F-BCC2-83BC2B8F412A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AAB2D32F-9F53-4A9F-BCC2-83BC2B8F412A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
