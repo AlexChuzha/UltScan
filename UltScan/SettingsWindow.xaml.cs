@@ -40,6 +40,7 @@ public partial class SettingsWindow : Window
     private readonly OverlayOption[] _overlayOptions;
     private readonly ModeOption[] _modeOptions;
     private readonly ThemeOption[] _themeOptions;
+    private readonly HoverModifierOption[] _wordHoverModifierOptions;
     private readonly string _appVersionText;
     private readonly bool _isRunningAsAdmin;
 
@@ -50,6 +51,8 @@ public partial class SettingsWindow : Window
         _isRunningAsAdmin = IsProcessElevated();
         _originalSettings = CloneSettings(_app.Settings);
         _pendingSettings = CloneSettings(_app.Settings);
+        EnsureWordHoverDefaults(_originalSettings);
+        EnsureWordHoverDefaults(_pendingSettings);
         _appVersionText = BuildVersionText();
         _suppressOverlayChange = true;
         _suppressAppearanceChange = true;
@@ -84,6 +87,13 @@ public partial class SettingsWindow : Window
             new ThemeOption("#FFD1D1", "#FF8A80", "Settings.TranslationThemeRose"),
             new ThemeOption("#E9D7F7", "#CE93D8", "Settings.TranslationThemeViolet"),
             new ThemeOption("#FFFFFF", "#F2F2F2", "Settings.TranslationThemeMono")
+        };
+        _wordHoverModifierOptions = new[]
+        {
+            new HoverModifierOption(ModifierKeys.Alt, "Settings.WordHoverModifierAlt"),
+            new HoverModifierOption(ModifierKeys.Control, "Settings.WordHoverModifierControl"),
+            new HoverModifierOption(ModifierKeys.Shift, "Settings.WordHoverModifierShift"),
+            new HoverModifierOption(ModifierKeys.Win, "Settings.WordHoverModifierWin")
         };
 
         LocaleCombo.ItemsSource = _loc.Locales;
@@ -266,6 +276,68 @@ public partial class SettingsWindow : Window
         }
 
         _pendingSettings.AutoStart = AutoStartCheckBox.IsChecked.Value;
+        MarkDirty();
+    }
+
+    private void WordHoverEnabled_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressAutoStartChange || WordHoverEnabledCheckBox.IsChecked == null)
+        {
+            return;
+        }
+
+        _pendingSettings.WordHover.Enabled = WordHoverEnabledCheckBox.IsChecked.Value;
+        MarkDirty();
+    }
+
+    private void WordHoverRequireModifier_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressAutoStartChange || WordHoverRequireModifierCheckBox.IsChecked == null)
+        {
+            return;
+        }
+
+        _pendingSettings.WordHover.RequireModifier = WordHoverRequireModifierCheckBox.IsChecked.Value;
+        MarkDirty();
+    }
+
+    private void WordHoverModifier_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressAutoStartChange)
+        {
+            return;
+        }
+
+        if (WordHoverModifierCombo.SelectedItem is not HoverModifierOption option)
+        {
+            return;
+        }
+
+        _pendingSettings.WordHover.ModifierKey = option.Value;
+        MarkDirty();
+    }
+
+    private void WordHoverPollInterval_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_suppressAutoStartChange)
+        {
+            return;
+        }
+
+        var value = (int)Math.Round(Math.Clamp(e.NewValue, 80, 600));
+        _pendingSettings.WordHover.PollIntervalMs = value;
+        WordHoverPollIntervalValue.Text = $"{value} ms";
+        MarkDirty();
+    }
+
+    private void WordHoverEnableTts_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressAutoStartChange || WordHoverEnableTtsCheckBox.IsChecked == null)
+        {
+            return;
+        }
+
+        _pendingSettings.WordHover.EnableTts = WordHoverEnableTtsCheckBox.IsChecked.Value;
         MarkDirty();
     }
 
@@ -729,6 +801,12 @@ public partial class SettingsWindow : Window
         HotkeysContext.Text = _loc["Settings.HotkeysContext"];
         HotkeysLabel.Text = _loc["Settings.HotkeysLabel"];
         AutoStartCheckBox.Content = _loc["Settings.AutoStart"];
+        WordHoverHeaderText.Text = _loc["Settings.WordHoverHeader"];
+        WordHoverEnabledCheckBox.Content = _loc["Settings.WordHoverEnabled"];
+        WordHoverRequireModifierCheckBox.Content = _loc["Settings.WordHoverRequireModifier"];
+        WordHoverModifierLabel.Text = _loc["Settings.WordHoverModifier"];
+        WordHoverPollIntervalLabel.Text = _loc["Settings.WordHoverPollInterval"];
+        WordHoverEnableTtsCheckBox.Content = _loc["Settings.WordHoverEnableTts"];
         ExperimentalModeCheckBox.Content = _loc["Settings.ExperimentalMode"];
         ExperimentalPreprocessCheckBox.Content = _loc["Settings.ExperimentalPreprocess"];
         ExperimentalPreprocessHint.Text = _loc["Settings.ExperimentalPreprocessHint"];
@@ -799,6 +877,17 @@ public partial class SettingsWindow : Window
 
         _suppressAutoStartChange = true;
         AutoStartCheckBox.IsChecked = _pendingSettings.AutoStart;
+        var modifierOptions = _wordHoverModifierOptions
+            .Select(o => new HoverModifierOption(o.Value, o.NameKey) { DisplayName = _loc[o.NameKey] })
+            .ToList();
+        WordHoverModifierCombo.ItemsSource = modifierOptions;
+        WordHoverModifierCombo.SelectedItem = modifierOptions.FirstOrDefault(o => o.Value == _pendingSettings.WordHover.ModifierKey)
+            ?? modifierOptions.FirstOrDefault();
+        WordHoverEnabledCheckBox.IsChecked = _pendingSettings.WordHover.Enabled;
+        WordHoverRequireModifierCheckBox.IsChecked = _pendingSettings.WordHover.RequireModifier;
+        WordHoverPollIntervalSlider.Value = Math.Clamp(_pendingSettings.WordHover.PollIntervalMs, 80, 600);
+        WordHoverPollIntervalValue.Text = $"{(int)Math.Round(WordHoverPollIntervalSlider.Value)} ms";
+        WordHoverEnableTtsCheckBox.IsChecked = _pendingSettings.WordHover.EnableTts;
         _suppressAutoStartChange = false;
 
         ExperimentalModeCheckBox.IsChecked = _pendingSettings.ExperimentalMode;
@@ -1369,6 +1458,7 @@ public partial class SettingsWindow : Window
     private void ApplyPendingSettings()
     {
         EnsureTranslationDefaults(_pendingSettings);
+        EnsureWordHoverDefaults(_pendingSettings);
 
         if (!StartupManager.SetEnabled(_pendingSettings.AutoStart))
         {
@@ -1404,6 +1494,26 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private static void EnsureWordHoverDefaults(AppSettings settings)
+    {
+        settings.WordHover ??= new WordHoverSettings();
+        settings.WordHover.PollIntervalMs = Math.Clamp(settings.WordHover.PollIntervalMs, 80, 600);
+        settings.WordHover.InitialCaptureWidth = Math.Clamp(settings.WordHover.InitialCaptureWidth, 120, 600);
+        settings.WordHover.InitialCaptureHeight = Math.Clamp(settings.WordHover.InitialCaptureHeight, 60, 400);
+        settings.WordHover.MaxCaptureWidth = Math.Clamp(settings.WordHover.MaxCaptureWidth, 200, 1000);
+        settings.WordHover.MaxCaptureHeight = Math.Clamp(settings.WordHover.MaxCaptureHeight, 100, 600);
+
+        if (settings.WordHover.MaxCaptureWidth < settings.WordHover.InitialCaptureWidth)
+        {
+            settings.WordHover.MaxCaptureWidth = settings.WordHover.InitialCaptureWidth;
+        }
+
+        if (settings.WordHover.MaxCaptureHeight < settings.WordHover.InitialCaptureHeight)
+        {
+            settings.WordHover.MaxCaptureHeight = settings.WordHover.InitialCaptureHeight;
+        }
+    }
+
     private static AppSettings CloneSettings(AppSettings source)
     {
         var json = System.Text.Json.JsonSerializer.Serialize(source);
@@ -1413,6 +1523,7 @@ public partial class SettingsWindow : Window
 
     private static void CopySettings(AppSettings target, AppSettings source)
     {
+        EnsureWordHoverDefaults(source);
         target.HotKey = new HotKeyConfig
         {
             Id = source.HotKey.Id,
@@ -1434,6 +1545,21 @@ public partial class SettingsWindow : Window
             AutoHideNoTextShowDelayMs = source.Overlay.AutoHideNoTextShowDelayMs,
             AutoHideNoTextEmptyFrames = source.Overlay.AutoHideNoTextEmptyFrames,
             AutoHideNoTextShowDormantFrame = source.Overlay.AutoHideNoTextShowDormantFrame
+        };
+        target.WordHover = new WordHoverSettings
+        {
+            Enabled = source.WordHover.Enabled,
+            RequireModifier = source.WordHover.RequireModifier,
+            ModifierKey = source.WordHover.ModifierKey,
+            PollIntervalMs = source.WordHover.PollIntervalMs,
+            InitialCaptureWidth = source.WordHover.InitialCaptureWidth,
+            InitialCaptureHeight = source.WordHover.InitialCaptureHeight,
+            MaxCaptureWidth = source.WordHover.MaxCaptureWidth,
+            MaxCaptureHeight = source.WordHover.MaxCaptureHeight,
+            ShowTranslationAlternatives = source.WordHover.ShowTranslationAlternatives,
+            EnableTts = source.WordHover.EnableTts,
+            AutoHideDelayMs = source.WordHover.AutoHideDelayMs,
+            PinByDefault = source.WordHover.PinByDefault
         };
         target.Translation = new TranslationSettings
         {
@@ -1606,6 +1732,20 @@ public partial class SettingsWindow : Window
         }
 
         public string Id { get; }
+        public string NameKey { get; }
+        public string DisplayName { get; set; }
+    }
+
+    private sealed class HoverModifierOption
+    {
+        public HoverModifierOption(ModifierKeys value, string nameKey)
+        {
+            Value = value;
+            NameKey = nameKey;
+            DisplayName = nameKey;
+        }
+
+        public ModifierKeys Value { get; }
         public string NameKey { get; }
         public string DisplayName { get; set; }
     }

@@ -225,6 +225,12 @@ public static class ScreenTextRecognizer
         return engines;
     }
 
+    public static async Task<IReadOnlyList<OcrWordLayout>> RecognizeWordsAsync(Rect rect, Visual visual)
+    {
+        var layout = await RecognizeLayoutAsync(rect, visual).ConfigureAwait(false);
+        return layout.Words;
+    }
+
     private static string? GetPreferredOcrLanguageFromSettings()
     {
         if (System.Windows.Application.Current is not App app)
@@ -359,6 +365,7 @@ public static class ScreenTextRecognizer
         var scaleY = rect.Height / softwareBitmap.PixelHeight;
 
         var lines = new List<OcrLineLayout>();
+        var words = new List<OcrWordLayout>();
         foreach (Windows.Media.Ocr.OcrLine line in result.Lines)
         {
             if (line.Words.Count == 0)
@@ -374,8 +381,14 @@ public static class ScreenTextRecognizer
             var parts = new List<string>(line.Words.Count);
             foreach (Windows.Media.Ocr.OcrWord word in line.Words)
             {
-                parts.Add(word.Text);
+                parts.Add(word.Text ?? string.Empty);
                 Windows.Foundation.Rect wordRect = word.BoundingRect;
+                var mappedWordRect = new System.Windows.Rect(
+                    rect.X + (wordRect.X * scaleX),
+                    rect.Y + (wordRect.Y * scaleY),
+                    wordRect.Width * scaleX,
+                    wordRect.Height * scaleY);
+                words.Add(new OcrWordLayout(word.Text ?? string.Empty, mappedWordRect));
                 minX = Math.Min(minX, wordRect.X);
                 minY = Math.Min(minY, wordRect.Y);
                 maxX = Math.Max(maxX, wordRect.X + wordRect.Width);
@@ -393,7 +406,7 @@ public static class ScreenTextRecognizer
         }
 
         var recognizedText = result.Text ?? string.Empty;
-        return new OcrLayoutResult(recognizedText, lines, ScoreText(recognizedText));
+        return new OcrLayoutResult(recognizedText, lines, words, ScoreText(recognizedText));
     }
 
     private static int ScoreText(string text)
@@ -476,18 +489,26 @@ public static class ScreenTextRecognizer
 
 public sealed class OcrLayoutResult
 {
-    public static readonly OcrLayoutResult Empty = new(string.Empty, Array.Empty<OcrLineLayout>(), 0);
+    public static readonly OcrLayoutResult Empty = new(string.Empty, Array.Empty<OcrLineLayout>(), Array.Empty<OcrWordLayout>(), 0);
 
     public OcrLayoutResult(string text, IReadOnlyList<OcrLineLayout> lines, int qualityScore)
+        : this(text, lines, Array.Empty<OcrWordLayout>(), qualityScore)
+    {
+    }
+
+    public OcrLayoutResult(string text, IReadOnlyList<OcrLineLayout> lines, IReadOnlyList<OcrWordLayout> words, int qualityScore)
     {
         Text = text;
         Lines = lines;
+        Words = words;
         QualityScore = qualityScore;
     }
 
     public string Text { get; }
     public IReadOnlyList<OcrLineLayout> Lines { get; }
+    public IReadOnlyList<OcrWordLayout> Words { get; }
     public int QualityScore { get; }
 }
 
 public sealed record OcrLineLayout(string Text, Rect Bounds);
+public sealed record OcrWordLayout(string Text, Rect Bounds);

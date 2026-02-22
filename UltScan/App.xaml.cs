@@ -21,6 +21,7 @@ namespace UltScan
         private Forms.NotifyIcon? _notifyIcon;
         private Forms.ToolStripMenuItem? _captureItem;
         private Forms.ToolStripMenuItem? _repeatItem;
+        private Forms.ToolStripMenuItem? _wordHoverItem;
         private Forms.ToolStripMenuItem? _settingsItem;
         private Forms.ToolStripMenuItem? _exitItem;
         private SettingsWindow? _settingsWindow;
@@ -95,6 +96,7 @@ namespace UltScan
 
             var isFirstRun = !File.Exists(AppSettings.SettingsPath);
             Settings = AppSettings.Load();
+            Settings.WordHover ??= new WordHoverSettings();
             Localization = LocalizationService.LoadFromDisk();
             InitializeLocale();
             InitializeTranslationSettings();
@@ -431,6 +433,9 @@ namespace UltScan
                 }
             };
 
+            _wordHoverItem = new Forms.ToolStripMenuItem();
+            _wordHoverItem.Click += (_, __) => ToggleWordHoverMode();
+
             _settingsItem = new Forms.ToolStripMenuItem(Localization["App.Tray.Settings"]);
             _settingsItem.Font = new System.Drawing.Font(_settingsItem.Font, System.Drawing.FontStyle.Bold);
             _settingsItem.Click += (_, __) => ShowSettingsWindow();
@@ -440,6 +445,7 @@ namespace UltScan
 
             menu.Items.Add(_captureItem);
             menu.Items.Add(_repeatItem);
+            menu.Items.Add(_wordHoverItem);
             menu.Items.Add(new Forms.ToolStripSeparator());
             menu.Items.Add(_settingsItem);
             menu.Items.Add(new Forms.ToolStripSeparator());
@@ -462,7 +468,7 @@ namespace UltScan
 
         public void UpdateTrayMenuText()
         {
-            if (_captureItem == null || _repeatItem == null || _settingsItem == null || _exitItem == null)
+            if (_captureItem == null || _repeatItem == null || _wordHoverItem == null || _settingsItem == null || _exitItem == null)
             {
                 return;
             }
@@ -479,8 +485,32 @@ namespace UltScan
                 _repeatItem.Text = Localization["App.Tray.RepeatLast"];
                 _repeatItem.Enabled = _lastCaptureRect.HasValue;
             }
+
+            var wordHoverStateKey = Settings.WordHover.Enabled
+                ? "App.Tray.WordHoverOn"
+                : "App.Tray.WordHoverOff";
+            _wordHoverItem.Text = Localization[wordHoverStateKey];
+            _wordHoverItem.Checked = Settings.WordHover.Enabled;
+
             _settingsItem.Text = Localization["App.Tray.Settings"];
             _exitItem.Text = Localization["App.Tray.Exit"];
+        }
+
+        public void SetWordHoverModeEnabled(bool enabled)
+        {
+            if (Settings.WordHover.Enabled == enabled)
+            {
+                return;
+            }
+
+            Settings.WordHover.Enabled = enabled;
+            Settings.Save();
+            UpdateTrayMenuText();
+        }
+
+        private void ToggleWordHoverMode()
+        {
+            SetWordHoverModeEnabled(!Settings.WordHover.Enabled);
         }
 
         public void ApplyOverlayAppearance()

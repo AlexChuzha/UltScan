@@ -12,6 +12,7 @@ public sealed class AppSettings
     public bool ExperimentalMode { get; set; }
     public TranslationSettings Translation { get; set; } = new();
     public OverlaySettings Overlay { get; set; } = new();
+    public WordHoverSettings WordHover { get; set; } = new();
     public bool ExperimentalImagePreprocessing { get; set; }
     public bool ExperimentalTranslationLogging { get; set; }
 
@@ -73,6 +74,22 @@ public sealed class OverlaySettings
     public int AutoHideNoTextShowDelayMs { get; set; } = 120;
     public int AutoHideNoTextEmptyFrames { get; set; } = 2;
     public bool AutoHideNoTextShowDormantFrame { get; set; } = true;
+}
+
+public sealed class WordHoverSettings
+{
+    public bool Enabled { get; set; }
+    public bool RequireModifier { get; set; } = true;
+    public ModifierKeys ModifierKey { get; set; } = ModifierKeys.Alt;
+    public int PollIntervalMs { get; set; } = 160;
+    public int InitialCaptureWidth { get; set; } = 200;
+    public int InitialCaptureHeight { get; set; } = 100;
+    public int MaxCaptureWidth { get; set; } = 440;
+    public int MaxCaptureHeight { get; set; } = 220;
+    public bool ShowTranslationAlternatives { get; set; }
+    public bool EnableTts { get; set; } = true;
+    public int AutoHideDelayMs { get; set; } = 600;
+    public bool PinByDefault { get; set; }
 }
 
 public enum OverlayOrientation
